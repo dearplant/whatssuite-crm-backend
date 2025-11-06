@@ -1,0 +1,149 @@
+import prisma from '../config/database.js';
+
+/**
+ * Create a new WhatsApp account
+ */
+export async function createWhatsAppAccount(data) {
+  return await prisma.whatsAppAccount.create({
+    data,
+  });
+}
+
+/**
+ * Find WhatsApp account by ID
+ */
+export async function findWhatsAppAccountById(id) {
+  return await prisma.whatsAppAccount.findUnique({
+    where: { id },
+  });
+}
+
+/**
+ * Find WhatsApp account by phone number
+ */
+export async function findWhatsAppAccountByPhone(phoneNumber) {
+  return await prisma.whatsAppAccount.findUnique({
+    where: { phoneNumber },
+  });
+}
+
+/**
+ * Find all WhatsApp accounts for a user
+ */
+export async function findWhatsAppAccountsByUserId(userId) {
+  return await prisma.whatsAppAccount.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+  });
+}
+
+/**
+ * Update WhatsApp account
+ */
+export async function updateWhatsAppAccount(id, data) {
+  return await prisma.whatsAppAccount.update({
+    where: { id },
+    data,
+  });
+}
+
+/**
+ * Update WhatsApp account connection status
+ */
+export async function updateConnectionStatus(id, status, additionalData = {}) {
+  return await prisma.whatsAppAccount.update({
+    where: { id },
+    data: {
+      connectionStatus: status,
+      ...additionalData,
+    },
+  });
+}
+
+/**
+ * Update WhatsApp account health status
+ */
+export async function updateHealthStatus(id, healthStatus) {
+  return await prisma.whatsAppAccount.update({
+    where: { id },
+    data: { healthStatus },
+  });
+}
+
+/**
+ * Increment message counters
+ */
+export async function incrementMessageCounter(id, direction) {
+  const field = direction === 'Inbound' ? 'messagesReceivedToday' : 'messagesSentToday';
+
+  return await prisma.whatsAppAccount.update({
+    where: { id },
+    data: {
+      [field]: {
+        increment: 1,
+      },
+    },
+  });
+}
+
+/**
+ * Reset daily message counters for all accounts
+ */
+export async function resetDailyCounters() {
+  return await prisma.whatsAppAccount.updateMany({
+    data: {
+      messagesSentToday: 0,
+      messagesReceivedToday: 0,
+    },
+  });
+}
+
+/**
+ * Get connected accounts
+ */
+export async function getConnectedAccounts() {
+  return await prisma.whatsAppAccount.findMany({
+    where: {
+      connectionStatus: 'Connected',
+      isActive: true,
+    },
+  });
+}
+
+/**
+ * Delete WhatsApp account
+ */
+export async function deleteWhatsAppAccount(id) {
+  return await prisma.whatsAppAccount.delete({
+    where: { id },
+  });
+}
+
+/**
+ * Check if user has reached account limit
+ */
+export async function checkAccountLimit(userId, limit = 5) {
+  const count = await prisma.whatsAppAccount.count({
+    where: {
+      userId,
+      isActive: true,
+    },
+  });
+
+  return count >= limit;
+}
+
+export default {
+  createWhatsAppAccount,
+  findWhatsAppAccountById,
+  findWhatsAppAccountByPhone,
+  findWhatsAppAccountsByUserId,
+  updateWhatsAppAccount,
+  updateConnectionStatus,
+  updateHealthStatus,
+  incrementMessageCounter,
+  resetDailyCounters,
+  getConnectedAccounts,
+  deleteWhatsAppAccount,
+  checkAccountLimit,
+};

@@ -1,0 +1,195 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: whatsapp-crm-postgres-prod
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - whatsapp-crm-prod-network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Redis Cache and Queue
+  redis:
+    image: redis:7-alpine
+    container_name: whatsapp-crm-redis-prod
+    restart: always
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_prod_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - whatsapp-crm-prod-network
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # Backend Application
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_VERSION: 20
+        NODE_ENV: production
+    container_name: whatsapp-crm-backend-prod
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.prod
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public&sslmode=prefer
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./logs:/app/logs
+      - ./sessions:/app/sessions
+      - ./uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 60s
+    networks:
+      - whatsapp-crm-prod-network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 1G
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: whatsapp-crm-nginx
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - nginx_logs:/var/log/nginx
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - whatsapp-crm-prod-network
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Certbot for SSL certificates
+  certbot:
+    image: certbot/certbot:latest
+    container_name: whatsapp-crm-certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+    networks:
+      - whatsapp-crm-prod-network
+
+  # Bull Board - Queue Monitoring
+  bull-board:
+    image: node:20-alpine
+    container_name: whatsapp-crm-bull-board-prod
+    restart: always
+    depends_on:
+      redis:
+        condition: service_healthy
+    working_dir: /app
+    command: sh -c "npm install @bull-board/api @bull-board/express bull express && node bull-board-server.js"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      BULL_BOARD_PORT: 3001
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - ./bull-board-server.js:/app/bull-board-server.js:ro
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    networks:
+      - whatsapp-crm-prod-network
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+
+networks:
+  whatsapp-crm-prod-network:
+    driver: bridge
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_prod_data:
+    driver: local
+  nginx_logs:
+    driver: local

@@ -1,0 +1,69 @@
+# Alertmanager Configuration
+
+global:
+  resolve_timeout: 5m
+  slack_api_url: '${SLACK_WEBHOOK_URL}'
+
+# Templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  receiver: 'default'
+  routes:
+    # Critical alerts
+    - match:
+        severity: critical
+      receiver: 'critical'
+      continue: true
+
+    # Warning alerts
+    - match:
+        severity: warning
+      receiver: 'warning'
+
+# Receivers
+receivers:
+  - name: 'default'
+    slack_configs:
+      - channel: '#alerts'
+        title: 'WhatsApp CRM Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+
+  - name: 'critical'
+    slack_configs:
+      - channel: '#critical-alerts'
+        title: '🚨 CRITICAL: WhatsApp CRM Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+    pagerduty_configs:
+      - service_key: '${PAGERDUTY_SERVICE_KEY}'
+        description: '{{ .CommonAnnotations.summary }}'
+    email_configs:
+      - to: '${ALERT_EMAIL}'
+        from: 'alerts@whatsapp-crm.com'
+        smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+        auth_username: '${SMTP_USER}'
+        auth_password: '${SMTP_PASSWORD}'
+        headers:
+          Subject: '🚨 CRITICAL: {{ .CommonAnnotations.summary }}'
+
+  - name: 'warning'
+    slack_configs:
+      - channel: '#alerts'
+        title: '⚠️ WARNING: WhatsApp CRM Alert'
+        text: '{{ range .Alerts }}{{ .Annotations.description }}{{ end }}'
+        send_resolved: true
+
+# Inhibition rules
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'cluster', 'service']

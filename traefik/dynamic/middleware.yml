@@ -1,0 +1,68 @@
+# Traefik Dynamic Configuration - Middleware
+
+http:
+  middlewares:
+    # Rate limiting
+    rate-limit-api:
+      rateLimit:
+        average: 100
+        period: 1m
+        burst: 20
+
+    rate-limit-auth:
+      rateLimit:
+        average: 5
+        period: 1m
+        burst: 3
+
+    # Security headers
+    security-headers:
+      headers:
+        frameDeny: true
+        sslRedirect: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
+        customResponseHeaders:
+          X-Robots-Tag: "none,noarchive,nosnippet,notranslate,noimageindex"
+          server: ""
+
+    # Compression
+    compression:
+      compress: {}
+
+    # CORS
+    cors-headers:
+      headers:
+        accessControlAllowMethods:
+          - GET
+          - POST
+          - PUT
+          - DELETE
+          - PATCH
+          - OPTIONS
+        accessControlAllowOriginList:
+          - https://app.whatsapp-crm.com
+        accessControlAllowHeaders:
+          - Content-Type
+          - Authorization
+          - X-Requested-With
+        accessControlExposeHeaders:
+          - X-Total-Count
+          - X-Page-Count
+        accessControlMaxAge: 86400
+        addVaryHeader: true
+
+    # Circuit breaker
+    circuit-breaker:
+      circuitBreaker:
+        expression: "NetworkErrorRatio() > 0.5 || ResponseCodeRatio(500, 600, 0, 600) > 0.3"
+
+    # Retry
+    retry:
+      retry:
+        attempts: 3
+        initialInterval: 100ms

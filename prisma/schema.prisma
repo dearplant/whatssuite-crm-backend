@@ -1,0 +1,650 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model account_health_history {
+  id                String            @id
+  account_id        String
+  score             Int
+  factors           Json              @default("{}")
+  timestamp         DateTime          @default(now())
+  whatsapp_accounts whatsapp_accounts @relation(fields: [account_id], references: [id], onDelete: Cascade)
+
+  @@index([account_id])
+  @@index([timestamp])
+}
+
+model analytics_events {
+  id         String   @id
+  team_id    String
+  event_type String
+  event_data Json     @default("{}")
+  user_id    String?
+  contact_id String?
+  session_id String?
+  ip_address String?
+  user_agent String?
+  timestamp  DateTime @default(now())
+
+  @@index([contact_id])
+  @@index([event_type])
+  @@index([team_id])
+  @@index([timestamp])
+  @@index([user_id])
+}
+
+model api_keys {
+  id           String    @id
+  team_id      String
+  user_id      String
+  name         String
+  key_hash     String
+  key_prefix   String
+  permissions  Json      @default("[]")
+  rate_limit   Int       @default(1000)
+  last_used_at DateTime?
+  expires_at   DateTime?
+  is_active    Boolean   @default(true)
+  created_at   DateTime  @default(now())
+  updated_at   DateTime
+  users        users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([key_hash])
+  @@index([key_prefix])
+  @@index([team_id])
+  @@index([user_id])
+}
+
+model audit_logs {
+  id            String   @id
+  team_id       String?
+  user_id       String?
+  action        String
+  resource_type String
+  resource_id   String?
+  old_values    Json?
+  new_values    Json?
+  ip_address    String?
+  user_agent    String?
+  timestamp     DateTime @default(now())
+  users         users?   @relation(fields: [user_id], references: [id])
+
+  @@index([action])
+  @@index([resource_type])
+  @@index([team_id])
+  @@index([timestamp])
+  @@index([user_id])
+}
+
+model campaign_messages {
+  id            String    @id
+  campaign_id   String
+  contact_id    String
+  message_id    String?
+  variant_id    String?
+  status        String    @default("pending")
+  error_message String?
+  sent_at       DateTime?
+  delivered_at  DateTime?
+  read_at       DateTime?
+  replied_at    DateTime?
+  created_at    DateTime  @default(now())
+  campaigns     campaigns @relation(fields: [campaign_id], references: [id], onDelete: Cascade)
+  contacts      contacts  @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+
+  @@unique([campaign_id, contact_id])
+  @@index([campaign_id])
+  @@index([contact_id])
+  @@index([status])
+  @@index([variant_id])
+}
+
+model campaigns {
+  id                  String              @id
+  team_id             String
+  account_id          String
+  user_id             String
+  template_id         String?
+  name                String
+  description         String?
+  messageType         String
+  message_content     String?
+  template_variables  Json?
+  audienceType        String
+  audience_config     Json                @default("{}")
+  schedule_type       String              @default("now")
+  scheduled_at        DateTime?
+  recurring_config    Json?
+  throttle_config     Json                @default("{\"messages_per_minute\": 10}")
+  status              String              @default("draft")
+  total_recipients    Int                 @default(0)
+  messages_sent       Int                 @default(0)
+  messages_delivered  Int                 @default(0)
+  messages_read       Int                 @default(0)
+  messages_replied    Int                 @default(0)
+  messages_failed     Int                 @default(0)
+  is_ab_test          Boolean             @default(false)
+  ab_test_config      Json?
+  winning_variant_id  String?
+  started_at          DateTime?
+  completed_at        DateTime?
+  created_at          DateTime            @default(now())
+  updated_at          DateTime
+  campaign_messages   campaign_messages[]
+  whatsapp_accounts   whatsapp_accounts   @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  teams               teams               @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  templates           templates?          @relation(fields: [template_id], references: [id])
+  users               users               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([account_id])
+  @@index([created_at])
+  @@index([scheduled_at])
+  @@index([status])
+  @@index([team_id])
+  @@index([user_id])
+  @@index([is_ab_test])
+}
+
+model contact_tags {
+  id         String   @id
+  contact_id String
+  tag_id     String
+  created_at DateTime @default(now())
+  contacts   contacts @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+  tags       tags     @relation(fields: [tag_id], references: [id], onDelete: Cascade)
+
+  @@unique([contact_id, tag_id])
+  @@index([contact_id])
+  @@index([tag_id])
+}
+
+model segments {
+  id          String   @id
+  team_id     String
+  name        String
+  description String?
+  conditions  Json     @default("{}")
+  contact_count Int    @default(0)
+  last_calculated_at DateTime?
+  created_at  DateTime @default(now())
+  updated_at  DateTime
+  teams       teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, name])
+  @@index([team_id])
+}
+
+model contact_imports {
+  id              String    @id
+  team_id         String
+  user_id         String
+  account_id      String
+  filename        String
+  file_type       String
+  total_count     Int       @default(0)
+  processed_count Int       @default(0)
+  imported_count  Int       @default(0)
+  skipped_count   Int       @default(0)
+  failed_count    Int       @default(0)
+  status          String    @default("Pending")
+  errors          Json      @default("[]")
+  started_at      DateTime?
+  completed_at    DateTime?
+  created_at      DateTime  @default(now())
+
+  @@index([team_id])
+  @@index([user_id])
+  @@index([status])
+  @@index([created_at])
+}
+
+model contacts {
+  id                    String                  @id
+  team_id               String
+  phone                 String
+  email                 String?
+  first_name            String?
+  last_name             String?
+  company               String?
+  city                  String?
+  country               String?
+  custom_fields         Json                    @default("{}")
+  engagement_score      Int                     @default(0)
+  source                String?
+  notes                 String?
+  is_blocked            Boolean                 @default(false)
+  last_contacted_at     DateTime?
+  created_at            DateTime                @default(now())
+  updated_at            DateTime
+  deleted_at            DateTime?
+  campaign_messages     campaign_messages[]
+  contact_tags          contact_tags[]
+  teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  conversations         conversations[]
+  flow_executions       flow_executions[]
+  messages              messages[]
+  chatbot_conversations chatbot_conversations[]
+
+  @@unique([team_id, phone])
+  @@index([created_at])
+  @@index([email])
+  @@index([engagement_score])
+  @@index([phone])
+  @@index([team_id])
+}
+
+model conversations {
+  id                    String                  @id
+  team_id               String
+  account_id            String
+  contact_id            String
+  status                String                  @default("open")
+  assigned_agent_id     String?
+  unread_count          Int                     @default(0)
+  last_message_at       DateTime?
+  last_message_preview  String?
+  is_starred            Boolean                 @default(false)
+  created_at            DateTime                @default(now())
+  updated_at            DateTime
+  whatsapp_accounts     whatsapp_accounts       @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  users                 users?                  @relation(fields: [assigned_agent_id], references: [id])
+  contacts              contacts                @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+  teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  flow_executions       flow_executions[]
+  messages              messages[]
+  chatbot_conversations chatbot_conversations[]
+
+  @@unique([account_id, contact_id])
+  @@index([account_id])
+  @@index([assigned_agent_id])
+  @@index([contact_id])
+  @@index([last_message_at])
+  @@index([status])
+  @@index([team_id])
+}
+
+model flow_executions {
+  id               String         @id
+  flow_id          String
+  contact_id       String
+  conversation_id  String?
+  status           String         @default("running")
+  current_node_id  String?
+  variables        Json           @default("{}")
+  error_message    String?
+  started_at       DateTime       @default(now())
+  completed_at     DateTime?
+  last_activity_at DateTime       @default(now())
+  contacts         contacts       @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+  conversations    conversations? @relation(fields: [conversation_id], references: [id])
+  flows            flows          @relation(fields: [flow_id], references: [id], onDelete: Cascade)
+
+  @@index([contact_id])
+  @@index([flow_id])
+  @@index([started_at])
+  @@index([status])
+}
+
+model flows {
+  id              String            @id
+  team_id         String
+  user_id         String
+  name            String
+  description     String?
+  triggerType     String
+  trigger_config  Json              @default("{}")
+  nodes           Json              @default("[]")
+  edges           Json              @default("[]")
+  variables       Json              @default("{}")
+  is_active       Boolean           @default(false)
+  version         Int               @default(1)
+  created_at      DateTime          @default(now())
+  updated_at      DateTime
+  deleted_at      DateTime?
+  flow_executions flow_executions[]
+  teams           teams             @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  users           users             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([is_active])
+  @@index([team_id])
+  @@index([triggerType])
+  @@index([user_id])
+}
+
+model messages {
+  id                  String             @id
+  conversation_id     String
+  whatsapp_message_id String?
+  senderType          String
+  sender_id           String?
+  contact_id          String?
+  account_id          String
+  content             String?
+  messageType         String
+  media_url           String?
+  media_filename      String?
+  media_size          Int?
+  template_name       String?
+  template_variables  Json?
+  status              String             @default("pending")
+  error_message       String?
+  sent_at             DateTime?
+  delivered_at        DateTime?
+  read_at             DateTime?
+  created_at          DateTime           @default(now())
+  whatsapp_accounts   whatsapp_accounts  @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  contacts            contacts?          @relation(fields: [contact_id], references: [id])
+  conversations       conversations      @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  users               users?             @relation(fields: [sender_id], references: [id])
+  chatbot_messages    chatbot_messages[]
+
+  @@index([account_id])
+  @@index([contact_id])
+  @@index([conversation_id])
+  @@index([created_at])
+  @@index([senderType])
+  @@index([sender_id])
+  @@index([status])
+  @@index([whatsapp_message_id])
+}
+
+model subscriptions {
+  id                     String   @id
+  team_id                String   @unique
+  plan_name              String
+  status                 String   @default("active")
+  current_period_start   DateTime
+  current_period_end     DateTime
+  cancel_at_period_end   Boolean  @default(false)
+  stripe_subscription_id String?
+  stripe_customer_id     String?
+  created_at             DateTime @default(now())
+  updated_at             DateTime
+  teams                  teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([team_id])
+}
+
+model tags {
+  id           String         @id
+  team_id      String
+  name         String
+  color        String         @default("#3B82F6")
+  description  String?
+  created_at   DateTime       @default(now())
+  updated_at   DateTime
+  contact_tags contact_tags[]
+  teams        teams          @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, name])
+  @@index([team_id])
+}
+
+model team_members {
+  id          String   @id
+  team_id     String
+  user_id     String
+  role        String
+  permissions Json     @default("[]")
+  joined_at   DateTime @default(now())
+  updated_at  DateTime
+  teams       teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([team_id, user_id])
+  @@index([role])
+  @@index([team_id])
+  @@index([user_id])
+}
+
+model teams {
+  id                String              @id
+  name              String
+  slug              String              @unique
+  logo_url          String?
+  settings          Json                @default("{}")
+  owner_id          String
+  created_at        DateTime            @default(now())
+  updated_at        DateTime
+  campaigns         campaigns[]
+  contacts          contacts[]
+  conversations     conversations[]
+  flows             flows[]
+  subscriptions     subscriptions?
+  tags              tags[]
+  team_members      team_members[]
+  users             users               @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  templates         templates[]
+  whatsapp_accounts whatsapp_accounts[]
+  segments          segments[]
+
+  @@index([owner_id])
+  @@index([slug])
+}
+
+model templates {
+  id                String            @id
+  team_id           String
+  account_id        String
+  name              String
+  category          String
+  language          String
+  header_type       String?
+  header_content    String?
+  body              String
+  footer            String?
+  buttons           Json              @default("[]")
+  status            String            @default("pending")
+  meta_template_id  String?
+  rejection_reason  String?
+  created_at        DateTime          @default(now())
+  updated_at        DateTime
+  campaigns         campaigns[]
+  whatsapp_accounts whatsapp_accounts @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  teams             teams             @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([account_id, name])
+  @@index([account_id])
+  @@index([category])
+  @@index([status])
+  @@index([team_id])
+}
+
+model users {
+  id                    String                  @id
+  email                 String                  @unique
+  password_hash         String
+  first_name            String?
+  last_name             String?
+  phone                 String?
+  avatar_url            String?
+  timezone              String                  @default("UTC")
+  language              String                  @default("en")
+  is_active             Boolean                 @default(true)
+  email_verified_at     DateTime?
+  last_login_at         DateTime?
+  created_at            DateTime                @default(now())
+  updated_at            DateTime
+  deleted_at            DateTime?
+  ai_providers          ai_providers[]
+  api_keys              api_keys[]
+  audit_logs            audit_logs[]
+  campaigns             campaigns[]
+  conversations         conversations[]
+  flows                 flows[]
+  messages              messages[]
+  team_members          team_members[]
+  teams                 teams[]
+  whatsapp_accounts     whatsapp_accounts[]
+  chatbots              chatbots[]
+  voice_transcriptions  voice_transcriptions[]
+
+  @@index([created_at])
+  @@index([email])
+  @@index([is_active])
+}
+
+model whatsapp_accounts {
+  id                     String                   @id
+  team_id                String
+  user_id                String
+  name                   String
+  phone                  String
+  type                   String
+  status                 String                   @default("disconnected")
+  health_score           Int                      @default(100)
+  credentials_encrypted  String?
+  webhook_url            String?
+  webhook_secret         String?
+  last_connected_at      DateTime?
+  last_health_check_at   DateTime?
+  daily_message_limit    Int                      @default(1000)
+  messages_sent_today    Int                      @default(0)
+  is_active              Boolean                  @default(true)
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime
+  deleted_at             DateTime?
+  account_health_history account_health_history[]
+  campaigns              campaigns[]
+  conversations          conversations[]
+  messages               messages[]
+  templates              templates[]
+  teams                  teams                    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  users                  users                    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  chatbots               chatbots[]
+
+  @@unique([team_id, phone])
+  @@index([health_score])
+  @@index([phone])
+  @@index([status])
+  @@index([team_id])
+  @@index([user_id])
+}
+
+model ai_providers {
+  id           String     @id
+  user_id      String
+  provider     String
+  is_active    Boolean    @default(false)
+  credentials  Json
+  model_config Json       @default("{}")
+  usage_count  Int        @default(0)
+  total_tokens Int        @default(0)
+  total_cost   Decimal    @default(0) @db.Decimal(10, 2)
+  last_used_at DateTime?
+  created_at   DateTime   @default(now())
+  updated_at   DateTime
+  users        users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  chatbots     chatbots[]
+
+  @@index([user_id, provider])
+  @@index([user_id])
+}
+
+enum ChatbotConversationStatus {
+  Active
+  Completed
+  Timeout
+  HandedOff
+}
+
+model chatbots {
+  id                      String                 @id
+  user_id                 String
+  account_id              String
+  ai_provider_id          String
+  name                    String
+  description             String?
+  system_prompt           String                 @db.Text
+  welcome_message         String?
+  fallback_message        String
+  is_active               Boolean                @default(false)
+  triggers                Json                   @default("{}")
+  conversation_timeout    Int                    @default(60)
+  max_conversation_turns  Int                    @default(10)
+  context_window          Int                    @default(5)
+  total_conversations     Int                    @default(0)
+  total_messages          Int                    @default(0)
+  avg_response_time       Int?
+  avg_satisfaction_score  Decimal?               @db.Decimal(3, 2)
+  created_at              DateTime               @default(now())
+  updated_at              DateTime
+  users                   users                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  whatsapp_accounts       whatsapp_accounts      @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  ai_providers            ai_providers           @relation(fields: [ai_provider_id], references: [id])
+  conversations           chatbot_conversations[]
+
+  @@index([user_id, account_id, is_active])
+  @@index([user_id])
+  @@index([account_id])
+  @@index([ai_provider_id])
+}
+
+model chatbot_conversations {
+  id                String                    @id
+  chatbot_id        String
+  contact_id        String
+  conversation_id   String
+  status            ChatbotConversationStatus @default(Active)
+  turn_count        Int                       @default(0)
+  satisfaction_score Int?
+  handoff_reason    String?
+  started_at        DateTime                  @default(now())
+  ended_at          DateTime?
+  chatbots          chatbots                  @relation(fields: [chatbot_id], references: [id], onDelete: Cascade)
+  contacts          contacts                  @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+  conversations     conversations             @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  messages          chatbot_messages[]
+
+  @@index([chatbot_id, status])
+  @@index([contact_id])
+  @@index([conversation_id])
+}
+
+model chatbot_messages {
+  id                       String                @id
+  chatbot_conversation_id  String
+  message_id               String
+  role                     String
+  content                  String                @db.Text
+  tokens_used              Int?
+  response_time            Int?
+  created_at               DateTime              @default(now())
+  chatbot_conversations    chatbot_conversations @relation(fields: [chatbot_conversation_id], references: [id], onDelete: Cascade)
+  messages                 messages              @relation(fields: [message_id], references: [id], onDelete: Cascade)
+
+  @@index([chatbot_conversation_id])
+  @@index([message_id])
+}
+
+enum TranscriptionProvider {
+  WhisperAPI
+  WhisperCpp
+  GoogleSTT
+  AssemblyAI
+}
+
+model voice_transcriptions {
+  id              String                 @id
+  user_id         String
+  message_id      String                 @unique
+  audio_url       String
+  transcription   String                 @db.Text
+  language        String
+  duration        Int
+  provider        TranscriptionProvider
+  confidence      Decimal?               @db.Decimal(3, 2)
+  processing_time Int
+  cost            Decimal?               @db.Decimal(10, 4)
+  created_at      DateTime               @default(now())
+  users           users                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([message_id])
+}

@@ -1,0 +1,305 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+/**
+ * Message Model - Database queries for message operations
+ */
+class MessageModel {
+  /**
+   * Create a new message
+   * @param {Object} data - Message data
+   * @returns {Promise<Object>} Created message
+   */
+  async create(data) {
+    return await prisma.message.create({
+      data,
+      include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        whatsappAccount: {
+          select: {
+            id: true,
+            phoneNumber: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Find message by ID
+   * @param {string} id - Message ID
+   * @returns {Promise<Object|null>} Message or null
+   */
+  async findById(id) {
+    return await prisma.message.findUnique({
+      where: { id },
+      include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+          },
+        },
+        whatsappAccount: {
+          select: {
+            id: true,
+            phoneNumber: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+  }
+
+  /**
+   * Find message by WhatsApp message ID
+   * @param {string} whatsappMessageId - WhatsApp message ID
+   * @returns {Promise<Object|null>} Message or null
+   */
+  async findByWhatsAppMessageId(whatsappMessageId) {
+    return await prisma.message.findUnique({
+      where: { whatsappMessageId },
+      include: {
+        contact: true,
+        whatsappAccount: true,
+      },
+    });
+  }
+
+  /**
+   * Update message status
+   * @param {string} id - Message ID
+   * @param {string} status - New status
+   * @param {Object} additionalData - Additional data to update
+   * @returns {Promise<Object>} Updated message
+   */
+  async updateStatus(id, status, additionalData = {}) {
+    const updateData = {
+      status,
+      ...additionalData,
+    };
+
+    // Set timestamps based on status
+    if (status === 'Sent' && !additionalData.sentAt) {
+      updateData.sentAt = new Date();
+    } else if (status === 'Delivered' && !additionalData.deliveredAt) {
+      updateData.deliveredAt = new Date();
+    } else if (status === 'Read' && !additionalData.readAt) {
+      updateData.readAt = new Date();
+    }
+
+    return await prisma.message.update({
+      where: { id },
+      data: updateData,
+      include: {
+        contact: true,
+        whatsappAccount: true,
+      },
+    });
+  }
+
+  /**
+   * Get messages with filters
+   * @param {Object} filters - Filter criteria
+   * @param {Object} pagination - Pagination options
+   * @returns {Promise<Object>} Messages and count
+   */
+  async findMany(filters = {}, pagination = {}) {
+    const { page = 1, limit = 50 } = pagination;
+    const skip = (page - 1) * limit;
+
+    const where = {};
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+
+    if (filters.whatsappAccountId) {
+      where.whatsappAccountId = filters.whatsappAccountId;
+    }
+
+    if (filters.contactId) {
+      where.contactId = filters.contactId;
+    }
+
+    if (filters.campaignId) {
+      where.campaignId = filters.campaignId;
+    }
+
+    if (filters.direction) {
+      where.direction = filters.direction;
+    }
+
+    if (filters.type) {
+      where.type = filters.type;
+    }
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.isFromBot !== undefined) {
+      where.isFromBot = filters.isFromBot;
+    }
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    const [messages, total] = await Promise.all([
+      prisma.message.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          contact: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              email: true,
+            },
+          },
+          whatsappAccount: {
+            select: {
+              id: true,
+              phoneNumber: true,
+              displayName: true,
+            },
+          },
+        },
+      }),
+      prisma.message.count({ where }),
+    ]);
+
+    return {
+      messages,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Get message statistics
+   * @param {Object} filters - Filter criteria
+   * @returns {Promise<Object>} Message statistics
+   */
+  async getStatistics(filters = {}) {
+    const where = {};
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+
+    if (filters.whatsappAccountId) {
+      where.whatsappAccountId = filters.whatsappAccountId;
+    }
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    const [total, byStatus, byDirection, byType] = await Promise.all([
+      prisma.message.count({ where }),
+      prisma.message.groupBy({
+        by: ['status'],
+        where,
+        _count: true,
+      }),
+      prisma.message.groupBy({
+        by: ['direction'],
+        where,
+        _count: true,
+      }),
+      prisma.message.groupBy({
+        by: ['type'],
+        where,
+        _count: true,
+      }),
+    ]);
+
+    return {
+      total,
+      byStatus: byStatus.reduce((acc, item) => {
+        acc[item.status] = item._count;
+        return acc;
+      }, {}),
+      byDirection: byDirection.reduce((acc, item) => {
+        acc[item.direction] = item._count;
+        return acc;
+      }, {}),
+      byType: byType.reduce((acc, item) => {
+        acc[item.type] = item._count;
+        return acc;
+      }, {}),
+    };
+  }
+
+  /**
+   * Delete old messages (soft delete)
+   * @param {Date} beforeDate - Delete messages before this date
+   * @returns {Promise<Object>} Delete result
+   */
+  async deleteOldMessages(beforeDate) {
+    return await prisma.message.updateMany({
+      where: {
+        createdAt: {
+          lt: beforeDate,
+        },
+      },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Get failed messages for retry
+   * @param {number} limit - Maximum number of messages to retrieve
+   * @returns {Promise<Array>} Failed messages
+   */
+  async getFailedMessages(limit = 100) {
+    return await prisma.message.findMany({
+      where: {
+        status: 'Failed',
+        errorMessage: {
+          not: null,
+        },
+      },
+      take: limit,
+      orderBy: { createdAt: 'asc' },
+      include: {
+        contact: true,
+        whatsappAccount: true,
+      },
+    });
+  }
+}
+
+export default new MessageModel();

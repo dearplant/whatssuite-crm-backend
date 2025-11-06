@@ -1,0 +1,197 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+/**
+ * Contact Model - Database queries for contact operations
+ */
+class ContactModel {
+  /**
+   * Create a new contact
+   * @param {Object} data - Contact data
+   * @returns {Promise<Object>} Created contact
+   */
+  async create(data) {
+    return await prisma.contact.create({
+      data,
+    });
+  }
+
+  /**
+   * Find contact by ID
+   * @param {string} id - Contact ID
+   * @returns {Promise<Object|null>} Contact or null
+   */
+  async findById(id) {
+    return await prisma.contact.findUnique({
+      where: { id },
+    });
+  }
+
+  /**
+   * Find contact by phone number
+   * @param {string} whatsappAccountId - WhatsApp account ID
+   * @param {string} phone - Phone number
+   * @returns {Promise<Object|null>} Contact or null
+   */
+  async findByPhone(whatsappAccountId, phone) {
+    return await prisma.contact.findUnique({
+      where: {
+        whatsappAccountId_phone: {
+          whatsappAccountId,
+          phone,
+        },
+      },
+    });
+  }
+
+  /**
+   * Update contact
+   * @param {string} id - Contact ID
+   * @param {Object} data - Update data
+   * @returns {Promise<Object>} Updated contact
+   */
+  async update(id, data) {
+    return await prisma.contact.update({
+      where: { id },
+      data,
+    });
+  }
+
+  /**
+   * Update last message timestamp
+   * @param {string} id - Contact ID
+   * @param {string} direction - Message direction
+   * @returns {Promise<Object>} Updated contact
+   */
+  async updateLastMessage(id, direction) {
+    return await prisma.contact.update({
+      where: { id },
+      data: {
+        lastMessageAt: new Date(),
+        totalMessages: {
+          increment: 1,
+        },
+      },
+    });
+  }
+
+  /**
+   * Increment unread count
+   * @param {string} id - Contact ID
+   * @returns {Promise<Object>} Updated contact
+   */
+  async incrementUnreadCount(id) {
+    return await prisma.contact.update({
+      where: { id },
+      data: {
+        unreadCount: {
+          increment: 1,
+        },
+      },
+    });
+  }
+
+  /**
+   * Decrement unread count
+   * @param {string} id - Contact ID
+   * @returns {Promise<Object>} Updated contact
+   */
+  async decrementUnreadCount(id) {
+    return await prisma.contact.update({
+      where: { id },
+      data: {
+        unreadCount: {
+          decrement: 1,
+        },
+      },
+    });
+  }
+
+  /**
+   * Reset unread count
+   * @param {string} id - Contact ID
+   * @returns {Promise<Object>} Updated contact
+   */
+  async resetUnreadCount(id) {
+    return await prisma.contact.update({
+      where: { id },
+      data: {
+        unreadCount: 0,
+      },
+    });
+  }
+
+  /**
+   * Find contacts with filters
+   * @param {Object} filters - Filter criteria
+   * @param {Object} pagination - Pagination options
+   * @returns {Promise<Object>} Contacts and count
+   */
+  async findMany(filters = {}, pagination = {}) {
+    const { page = 1, limit = 50 } = pagination;
+    const skip = (page - 1) * limit;
+
+    const where = {};
+
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+
+    if (filters.whatsappAccountId) {
+      where.whatsappAccountId = filters.whatsappAccountId;
+    }
+
+    if (filters.search) {
+      where.OR = [
+        { name: { contains: filters.search, mode: 'insensitive' } },
+        { phone: { contains: filters.search } },
+        { email: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filters.tags && filters.tags.length > 0) {
+      where.tags = {
+        hasSome: filters.tags,
+      };
+    }
+
+    if (filters.isBlocked !== undefined) {
+      where.isBlocked = filters.isBlocked;
+    }
+
+    const [contacts, total] = await Promise.all([
+      prisma.contact.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { lastMessageAt: 'desc' },
+      }),
+      prisma.contact.count({ where }),
+    ]);
+
+    return {
+      contacts,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * Delete contact (soft delete)
+   * @param {string} id - Contact ID
+   * @returns {Promise<Object>} Updated contact
+   */
+  async delete(id) {
+    return await prisma.contact.update({
+      where: { id },
+      data: {
+        deletedAt: new Date(),
+      },
+    });
+  }
+}
+
+export default new ContactModel();

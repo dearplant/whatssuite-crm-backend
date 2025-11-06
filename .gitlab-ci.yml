@@ -1,0 +1,248 @@
+# GitLab CI/CD Pipeline for WhatsApp CRM Backend
+
+variables:
+  NODE_VERSION: "20"
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+  IMAGE_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+  LATEST_TAG: $CI_REGISTRY_IMAGE:latest
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy-staging
+  - deploy-production
+
+# Cache node_modules
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - node_modules/
+    - .npm/
+
+# Lint Stage
+lint:
+  stage: lint
+  image: node:${NODE_VERSION}-alpine
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run lint
+    - npm run format -- --check
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Test Stage
+test:
+  stage: test
+  image: node:${NODE_VERSION}-alpine
+  services:
+    - name: postgres:15-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
+  variables:
+    POSTGRES_DB: whatsapp_crm_test
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    DATABASE_URL: postgresql://postgres:postgres@postgres:5432/whatsapp_crm_test?schema=public
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+    JWT_SECRET: test-jwt-secret-min-32-characters
+    JWT_REFRESH_SECRET: test-jwt-refresh-secret-min-32-characters
+    ENCRYPTION_KEY: test-encryption-key-min-32-characters
+    NODE_ENV: test
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npx prisma generate
+    - npx prisma migrate deploy
+    - npm test
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+    paths:
+      - coverage/
+    expire_in: 30 days
+  only:
+    - merge_requests
+    - main
+    - develop
+
+# Security Scan
+security-scan:
+  stage: test
+  image: aquasec/trivy:latest
+  script:
+    - trivy fs --exit-code 0 --severity HIGH,CRITICAL --format json -o trivy-report.json .
+    - trivy fs --exit-code 1 --severity CRITICAL .
+  artifacts:
+    reports:
+      container_scanning: trivy-report.json
+    expire_in: 30 days
+  allow_failure: true
+  only:
+    - merge_requests
+    - main
+
+# Build Docker Image
+build:
+  stage: build
+  image: docker:24-dind
+  services:
+    - docker:24-dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  script:
+    - docker build 
+        --build-arg NODE_VERSION=${NODE_VERSION}
+        --build-arg NODE_ENV=production
+        --cache-from $LATEST_TAG
+        -t $IMAGE_TAG
+        -t $LATEST_TAG
+        -f Dockerfile .
+    - docker push $IMAGE_TAG
+    - docker push $LATEST_TAG
+  only:
+    - main
+    - tags
+
+# Deploy to Staging
+deploy-staging:
+  stage: deploy-staging
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client curl
+    - eval $(ssh-agent -s)
+    - echo "$STAGING_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $STAGING_HOST >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh $STAGING_USER@$STAGING_HOST << 'EOF'
+        cd /opt/whatsapp-crm-backend
+        
+        # Pull latest code
+        git pull origin main
+        
+        # Pull latest Docker image
+        docker pull $IMAGE_TAG
+        
+        # Stop and remove old containers
+        docker-compose down
+        
+        # Start new containers
+        docker-compose up -d
+        
+        # Run database migrations
+        docker-compose exec -T backend npx prisma migrate deploy
+        
+        # Health check
+        sleep 10
+        curl -f http://localhost:5000/health || exit 1
+        
+        echo "✅ Deployment to staging completed"
+      EOF
+  environment:
+    name: staging
+    url: https://staging-api.whatsapp-crm.com
+  only:
+    - main
+  when: on_success
+
+# Notify Staging Deployment
+notify-staging:
+  stage: deploy-staging
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl -X POST $SLACK_WEBHOOK_URL \
+        -H 'Content-Type: application/json' \
+        -d "{
+          \"text\": \"✅ Staging Deployment Successful\",
+          \"attachments\": [{
+            \"color\": \"good\",
+            \"fields\": [
+              {\"title\": \"Branch\", \"value\": \"$CI_COMMIT_REF_NAME\", \"short\": true},
+              {\"title\": \"Commit\", \"value\": \"$CI_COMMIT_SHORT_SHA\", \"short\": true},
+              {\"title\": \"Author\", \"value\": \"$GITLAB_USER_NAME\", \"short\": true}
+            ]
+          }]
+        }"
+  only:
+    - main
+  when: on_success
+
+# Deploy to Production (Manual)
+deploy-production:
+  stage: deploy-production
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache openssh-client curl
+    - eval $(ssh-agent -s)
+    - echo "$PROD_SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - ssh-keyscan $PROD_HOST >> ~/.ssh/known_hosts
+  script:
+    - |
+      ssh $PROD_USER@$PROD_HOST << 'EOF'
+        cd /opt/whatsapp-crm-backend
+        
+        # Create backup
+        BACKUP_DIR="/opt/backups/whatsapp-crm-$(date +%Y%m%d-%H%M%S)"
+        mkdir -p $BACKUP_DIR
+        docker-compose exec -T postgres pg_dump -U postgres whatsapp_crm_prod | gzip > $BACKUP_DIR/database.sql.gz
+        tar -czf $BACKUP_DIR/deployment.tar.gz .
+        
+        # Pull latest code
+        git fetch --all --tags
+        git checkout $CI_COMMIT_TAG
+        
+        # Pull latest Docker image
+        docker pull $IMAGE_TAG
+        
+        # Zero-downtime deployment
+        docker-compose up -d --no-deps --scale backend=2 backend
+        sleep 30
+        docker-compose exec -T backend npx prisma migrate deploy
+        docker-compose up -d --no-deps --scale backend=1 backend
+        
+        # Health check
+        curl -f https://api.whatsapp-crm.com/health || exit 1
+        
+        echo "✅ Deployment to production completed"
+      EOF
+  environment:
+    name: production
+    url: https://api.whatsapp-crm.com
+  only:
+    - tags
+  when: manual
+
+# Notify Production Deployment
+notify-production:
+  stage: deploy-production
+  image: curlimages/curl:latest
+  script:
+    - |
+      curl -X POST $SLACK_WEBHOOK_URL \
+        -H 'Content-Type: application/json' \
+        -d "{
+          \"text\": \"🚀 Production Deployment Successful\",
+          \"attachments\": [{
+            \"color\": \"good\",
+            \"fields\": [
+              {\"title\": \"Version\", \"value\": \"$CI_COMMIT_TAG\", \"short\": true},
+              {\"title\": \"Deployed by\", \"value\": \"$GITLAB_USER_NAME\", \"short\": true}
+            ]
+          }]
+        }"
+  only:
+    - tags
+  when: on_success

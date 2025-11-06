@@ -1,0 +1,275 @@
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+/**
+ * User Model - Database queries for user operations
+ */
+class UserModel {
+  /**
+   * Create a new user
+   * @param {Object} data - User data
+   * @returns {Promise<Object>} Created user
+   */
+  async create(data) {
+    return await prisma.user.create({
+      data,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        profilePicture: true,
+        language: true,
+        timezone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  /**
+   * Find user by email
+   * @param {string} email - User email
+   * @param {boolean} includePassword - Include password in result
+   * @returns {Promise<Object|null>} User or null
+   */
+  async findByEmail(email, includePassword = false) {
+    const select = {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+      role: true,
+      isActive: true,
+      isEmailVerified: true,
+      emailVerificationToken: true,
+      passwordResetToken: true,
+      passwordResetExpires: true,
+      lastLoginAt: true,
+      loginAttempts: true,
+      lockedUntil: true,
+      profilePicture: true,
+      language: true,
+      timezone: true,
+      createdAt: true,
+      updatedAt: true,
+      deletedAt: true,
+    };
+
+    if (includePassword) {
+      select.password = true;
+    }
+
+    return await prisma.user.findUnique({
+      where: { email },
+      select,
+    });
+  }
+
+  /**
+   * Find user by ID
+   * @param {string} id - User ID
+   * @returns {Promise<Object|null>} User or null
+   */
+  async findById(id) {
+    return await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        lastLoginAt: true,
+        profilePicture: true,
+        language: true,
+        timezone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  /**
+   * Update user by ID
+   * @param {string} id - User ID
+   * @param {Object} data - Update data
+   * @returns {Promise<Object>} Updated user
+   */
+  async update(id, data) {
+    return await prisma.user.update({
+      where: { id },
+      data,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isEmailVerified: true,
+        lastLoginAt: true,
+        loginAttempts: true,
+        lockedUntil: true,
+        profilePicture: true,
+        language: true,
+        timezone: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+  }
+
+  /**
+   * Increment login attempts
+   * @param {string} id - User ID
+   * @returns {Promise<Object>} Updated user
+   */
+  async incrementLoginAttempts(id) {
+    return await prisma.user.update({
+      where: { id },
+      data: {
+        loginAttempts: {
+          increment: 1,
+        },
+      },
+    });
+  }
+
+  /**
+   * Reset login attempts
+   * @param {string} id - User ID
+   * @returns {Promise<Object>} Updated user
+   */
+  async resetLoginAttempts(id) {
+    return await prisma.user.update({
+      where: { id },
+      data: {
+        loginAttempts: 0,
+        lockedUntil: null,
+      },
+    });
+  }
+
+  /**
+   * Lock user account
+   * @param {string} id - User ID
+   * @param {number} duration - Lock duration in milliseconds
+   * @returns {Promise<Object>} Updated user
+   */
+  async lockAccount(id, duration) {
+    const lockedUntil = new Date(Date.now() + duration);
+    return await prisma.user.update({
+      where: { id },
+      data: {
+        lockedUntil,
+      },
+    });
+  }
+
+  /**
+   * Update last login timestamp
+   * @param {string} id - User ID
+   * @returns {Promise<Object>} Updated user
+   */
+  async updateLastLogin(id) {
+    return await prisma.user.update({
+      where: { id },
+      data: {
+        lastLoginAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * Set password reset token
+   * @param {string} email - User email
+   * @param {string} token - Reset token
+   * @param {Date} expires - Token expiration
+   * @returns {Promise<Object>} Updated user
+   */
+  async setPasswordResetToken(email, token, expires) {
+    return await prisma.user.update({
+      where: { email },
+      data: {
+        passwordResetToken: token,
+        passwordResetExpires: expires,
+      },
+    });
+  }
+
+  /**
+   * Clear password reset token
+   * @param {string} id - User ID
+   * @returns {Promise<Object>} Updated user
+   */
+  async clearPasswordResetToken(id) {
+    return await prisma.user.update({
+      where: { id },
+      data: {
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+  }
+
+  /**
+   * Set email verification token
+   * @param {string} id - User ID
+   * @param {string} token - Verification token
+   * @returns {Promise<Object>} Updated user
+   */
+  async setEmailVerificationToken(id, token) {
+    return await prisma.user.update({
+      where: { id },
+      data: {
+        emailVerificationToken: token,
+      },
+    });
+  }
+
+  /**
+   * Verify email
+   * @param {string} token - Verification token
+   * @returns {Promise<Object>} Updated user
+   */
+  async verifyEmail(token) {
+    return await prisma.user.updateMany({
+      where: {
+        emailVerificationToken: token,
+      },
+      data: {
+        isEmailVerified: true,
+        emailVerificationToken: null,
+      },
+    });
+  }
+
+  /**
+   * Find user by password reset token
+   * @param {string} token - Reset token
+   * @returns {Promise<Object|null>} User or null
+   */
+  async findByPasswordResetToken(token) {
+    return await prisma.user.findFirst({
+      where: {
+        passwordResetToken: token,
+        passwordResetExpires: {
+          gt: new Date(),
+        },
+      },
+    });
+  }
+}
+
+export default new UserModel();

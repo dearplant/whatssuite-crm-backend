@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to {{appName}}</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .container {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 30px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .button {
+      display: inline-block;
+      padding: 12px 30px;
+      background-color: #25D366;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .features {
+      background-color: white;
+      border-radius: 5px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .feature-item {
+      margin: 15px 0;
+      padding-left: 25px;
+      position: relative;
+    }
+    .feature-item:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #25D366;
+      font-weight: bold;
+    }
+    .footer {
+      margin-top: 30px;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Welcome to {{appName}}! 🎉</h1>
+    </div>
+    
+    <h2>Hi {{firstName}},</h2>
+    
+    <p>We're excited to have you on board! Your account has been successfully created and you're ready to start managing your WhatsApp customer relationships.</p>
+    
+    <div class="features">
+      <h3>What you can do with {{appName}}:</h3>
+      <div class="feature-item">Connect multiple WhatsApp Business accounts</div>
+      <div class="feature-item">Manage contacts and conversations in one place</div>
+      <div class="feature-item">Create and schedule broadcast campaigns</div>
+      <div class="feature-item">Build automated workflows and chatbots</div>
+      <div class="feature-item">Integrate with e-commerce platforms</div>
+      <div class="feature-item">Track analytics and performance metrics</div>
+    </div>
+    
+    <div style="text-align: center;">
+      <a href="{{loginUrl}}" class="button">Get Started</a>
+    </div>
+    
+    <p>If you have any questions or need assistance, our support team is here to help!</p>
+    
+    <div class="footer">
+      <p>&copy; {{appName}}. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>
