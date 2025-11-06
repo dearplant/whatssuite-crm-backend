@@ -18,13 +18,15 @@ stages:
 cache:
   key: ${CI_COMMIT_REF_SLUG}
   paths:
-    - node_modules/
-    - .npm/
+    - backend/node_modules/
+    - backend/.npm/
 
 # Lint Stage
 lint:
   stage: lint
   image: node:${NODE_VERSION}-alpine
+  before_script:
+    - cd backend
   script:
     - npm ci --cache .npm --prefer-offline
     - npm run lint
@@ -54,6 +56,8 @@ test:
     JWT_REFRESH_SECRET: test-jwt-refresh-secret-min-32-characters
     ENCRYPTION_KEY: test-encryption-key-min-32-characters
     NODE_ENV: test
+  before_script:
+    - cd backend
   script:
     - npm ci --cache .npm --prefer-offline
     - npx prisma generate
@@ -78,8 +82,8 @@ security-scan:
   stage: test
   image: aquasec/trivy:latest
   script:
-    - trivy fs --exit-code 0 --severity HIGH,CRITICAL --format json -o trivy-report.json .
-    - trivy fs --exit-code 1 --severity CRITICAL .
+    - trivy fs --exit-code 0 --severity HIGH,CRITICAL --format json -o trivy-report.json backend/
+    - trivy fs --exit-code 1 --severity CRITICAL backend/
   artifacts:
     reports:
       container_scanning: trivy-report.json
@@ -105,7 +109,7 @@ build:
         --cache-from $LATEST_TAG \
         -t $IMAGE_TAG \
         -t $LATEST_TAG \
-        -f Dockerfile .
+        -f backend/Dockerfile backend/
     - docker push $IMAGE_TAG
     - docker push $LATEST_TAG
   only:
