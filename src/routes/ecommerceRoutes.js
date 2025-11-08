@@ -55,6 +55,13 @@ router.get(
   ecommerceController.getIntegration
 );
 
+router.put(
+  '/integrations/:id',
+  authenticate,
+  authorize('ecommerce:update'),
+  ecommerceController.updateIntegration
+);
+
 router.post(
   '/integrations/:id/sync',
   authenticate,
@@ -78,6 +85,15 @@ router.post(
 
 // Orders
 router.get('/orders', authenticate, authorize('ecommerce:read'), ecommerceController.listOrders);
+
+router.get('/orders/:id', authenticate, authorize('ecommerce:read'), ecommerceController.getOrder);
+
+router.post(
+  '/orders/:id/notify',
+  authenticate,
+  authorize('ecommerce:update'),
+  ecommerceController.notifyOrder
+);
 
 // Abandoned Carts
 router.get(

@@ -318,6 +318,62 @@ export async function getIntegration(req, res) {
 }
 
 /**
+ * Update integration
+ * PUT /api/v1/ecommerce/integrations/:id
+ */
+export async function updateIntegration(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.teamId;
+    const { is_active, webhook_secret, metadata } = req.body;
+
+    // Verify integration belongs to team
+    const integration = await prisma.ecommerce_integrations.findFirst({
+      where: {
+        id,
+        team_id: teamId,
+      },
+    });
+
+    if (!integration) {
+      return res.status(404).json({
+        success: false,
+        message: 'Integration not found',
+      });
+    }
+
+    // Update integration
+    const updateData = {};
+    if (typeof is_active !== 'undefined') updateData.is_active = is_active;
+    if (webhook_secret) updateData.webhook_secret = webhook_secret;
+    if (metadata) updateData.metadata = metadata;
+
+    const updatedIntegration = await prisma.ecommerce_integrations.update({
+      where: { id },
+      data: updateData,
+    });
+
+    logger.info('Integration updated', {
+      integrationId: id,
+      teamId,
+      userId: req.user.id,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Integration updated successfully',
+      data: updatedIntegration,
+    });
+  } catch (error) {
+    logger.error('Error updating integration:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update integration',
+    });
+  }
+}
+
+/**
  * Sync orders
  * POST /api/v1/ecommerce/integrations/:id/sync
  */
@@ -534,6 +590,175 @@ export async function listOrders(req, res) {
       message: 'Failed to list orders',
     });
   }
+}
+
+/**
+ * Get order by ID
+ * GET /api/v1/ecommerce/orders/:id
+ */
+export async function getOrder(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.teamId;
+
+    const order = await prisma.ecommerce_orders.findFirst({
+      where: {
+        id,
+        team_id: teamId,
+      },
+      include: {
+        integration: {
+          select: {
+            id: true,
+            provider: true,
+            store_name: true,
+            store_url: true,
+          },
+        },
+        contacts: {
+          select: {
+            id: true,
+            first_name: true,
+            last_name: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: order,
+    });
+  } catch (error) {
+    logger.error('Error getting order:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to get order',
+    });
+  }
+}
+
+/**
+ * Send notification for an order
+ * POST /api/v1/ecommerce/orders/:id/notify
+ */
+export async function notifyOrder(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.teamId;
+    const { message, template } = req.body;
+
+    // Get order with contact info
+    const order = await prisma.ecommerce_orders.findFirst({
+      where: {
+        id,
+        team_id: teamId,
+      },
+      include: {
+        contacts: true,
+        integration: true,
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found',
+      });
+    }
+
+    // Get WhatsApp account for the team
+    const whatsappAccount = await prisma.whatsapp_accounts.findFirst({
+      where: {
+        team_id: teamId,
+        is_active: true,
+        status: 'connected',
+      },
+    });
+
+    if (!whatsappAccount) {
+      return res.status(400).json({
+        success: false,
+        message: 'No active WhatsApp account found',
+      });
+    }
+
+    // Get phone number
+    const phoneNumber = order.customer_phone || order.contacts?.phone;
+    if (!phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'No phone number available for this order',
+      });
+    }
+
+    // Generate message
+    let notificationMessage = message;
+    if (!notificationMessage && template) {
+      // Use template
+      notificationMessage = generateOrderNotificationMessage(order, template);
+    } else if (!notificationMessage) {
+      // Default message
+      notificationMessage = `Hi ${order.customer_name || 'there'}! Your order #${order.order_number} has been updated. Status: ${order.status}. Thank you for your purchase!`;
+    }
+
+    // Queue message for sending
+    const { addJob } = await import('../queues/index.js');
+    await addJob('sendMessage', {
+      accountId: whatsappAccount.id,
+      to: phoneNumber,
+      message: notificationMessage,
+      metadata: {
+        type: 'order_notification',
+        orderId: order.id,
+        externalOrderId: order.external_order_id,
+      },
+    });
+
+    logger.info('Order notification queued', {
+      orderId: id,
+      phoneNumber,
+      userId: req.user.id,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Notification sent successfully',
+      data: {
+        orderId: id,
+        phoneNumber,
+      },
+    });
+  } catch (error) {
+    logger.error('Error sending order notification:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to send notification',
+    });
+  }
+}
+
+/**
+ * Generate order notification message
+ */
+function generateOrderNotificationMessage(order, template) {
+  const templates = {
+    created: `Hi ${order.customer_name || 'there'}! 🎉\n\nYour order #${order.order_number} has been received!\n\nTotal: ${order.currency} ${order.total_amount}\n\nWe'll notify you when it ships. Thank you for your purchase!`,
+    fulfilled: `Hi ${order.customer_name || 'there'}! 📦\n\nGreat news! Your order #${order.order_number} has been fulfilled and is on its way!\n\n${order.tracking_number ? `Tracking: ${order.tracking_number}\n${order.tracking_url || ''}` : ''}\n\nThank you for shopping with us!`,
+    shipped: `Hi ${order.customer_name || 'there'}! 🚚\n\nYour order #${order.order_number} has been shipped!\n\nTracking: ${order.tracking_number}\n${order.tracking_url || ''}\n\nExpected delivery soon!`,
+    delivered: `Hi ${order.customer_name || 'there'}! ✅\n\nYour order #${order.order_number} has been delivered!\n\nWe hope you love your purchase. If you have any questions, just reply to this message!`,
+  };
+
+  return templates[template] || templates.created;
 }
 
 /**

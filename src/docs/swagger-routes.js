@@ -2500,3 +2500,175 @@ export default {};
  *       401:
  *         description: Unauthorized
  */
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/integrations/{id}:
+ *   put:
+ *     summary: Update e-commerce integration
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Integration ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               is_active:
+ *                 type: boolean
+ *                 example: true
+ *               webhook_secret:
+ *                 type: string
+ *                 example: new_webhook_secret_123
+ *               metadata:
+ *                 type: object
+ *                 example: { "custom_field": "value" }
+ *     responses:
+ *       200:
+ *         description: Integration updated successfully
+ *       404:
+ *         description: Integration not found
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/orders/{id}:
+ *   get:
+ *     summary: Get order by ID
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     external_order_id:
+ *                       type: string
+ *                     order_number:
+ *                       type: string
+ *                       example: "#1001"
+ *                     customer_email:
+ *                       type: string
+ *                       example: customer@example.com
+ *                     customer_phone:
+ *                       type: string
+ *                       example: "+1234567890"
+ *                     customer_name:
+ *                       type: string
+ *                       example: John Doe
+ *                     total_amount:
+ *                       type: number
+ *                       example: 149.99
+ *                     currency:
+ *                       type: string
+ *                       example: USD
+ *                     status:
+ *                       type: string
+ *                       example: Processing
+ *                     items:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     shipping_address:
+ *                       type: object
+ *                     billing_address:
+ *                       type: object
+ *                     tracking_number:
+ *                       type: string
+ *                     tracking_url:
+ *                       type: string
+ *       404:
+ *         description: Order not found
+ *       401:
+ *         description: Unauthorized
+ */
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/orders/{id}/notify:
+ *   post:
+ *     summary: Send notification for an order
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: Custom message to send
+ *                 example: Your order has been shipped!
+ *               template:
+ *                 type: string
+ *                 enum: [created, fulfilled, shipped, delivered]
+ *                 description: Use a predefined template
+ *                 example: shipped
+ *     responses:
+ *       200:
+ *         description: Notification sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Notification sent successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orderId:
+ *                       type: string
+ *                     phoneNumber:
+ *                       type: string
+ *       400:
+ *         description: No active WhatsApp account or phone number
+ *       404:
+ *         description: Order not found
+ *       401:
+ *         description: Unauthorized
+ */
