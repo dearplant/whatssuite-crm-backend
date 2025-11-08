@@ -356,21 +356,30 @@ model messages {
 }
 
 model subscriptions {
-  id                     String   @id
-  team_id                String   @unique
-  plan_name              String
-  status                 String   @default("active")
-  current_period_start   DateTime
-  current_period_end     DateTime
-  cancel_at_period_end   Boolean  @default(false)
-  stripe_subscription_id String?
-  stripe_customer_id     String?
-  created_at             DateTime @default(now())
-  updated_at             DateTime
-  teams                  teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  id                      String   @id @default(uuid())
+  team_id                 String
+  plan_id                 String
+  gateway_id              String
+  external_subscription_id String?
+  status                  String   // Active, Cancelled, Expired, PastDue
+  current_period_start    DateTime
+  current_period_end      DateTime
+  cancel_at_period_end    Boolean  @default(false)
+  cancelled_at            DateTime?
+  metadata                Json?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
 
-  @@index([status])
+  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  subscription_plans      subscription_plans @relation(fields: [plan_id], references: [id])
+  payment_gateways        payment_gateways @relation(fields: [gateway_id], references: [id])
+  payments                payments[]
+  invoices                invoices[]
+
   @@index([team_id])
+  @@index([plan_id])
+  @@index([gateway_id])
+  @@index([status])
 }
 
 model tags {
@@ -418,7 +427,6 @@ model teams {
   contacts          contacts[]
   conversations     conversations[]
   flows             flows[]
-  subscriptions     subscriptions?
   tags              tags[]
   team_members      team_members[]
   users             users               @relation(fields: [owner_id], references: [id], onDelete: Cascade)
@@ -428,6 +436,10 @@ model teams {
   ecommerce_integrations ecommerce_integrations[]
   ecommerce_orders  ecommerce_orders[]
   abandoned_carts   abandoned_carts[]
+  payment_gateways  payment_gateways[]
+  team_subscriptions subscriptions[]
+  payments          payments[]
+  invoices          invoices[]
 
   @@index([owner_id])
   @@index([slug])
@@ -798,4 +810,97 @@ model abandoned_carts {
   @@index([status])
   @@index([abandoned_at])
   @@index([expires_at])
+}
+
+
+// Payment Gateway Models
+model payment_gateways {
+  id                      String   @id @default(uuid())
+  team_id                 String
+  provider                String   // Stripe, PayPal, Razorpay
+  credentials_encrypted   String   @db.Text
+  is_active               Boolean  @default(true)
+  metadata                Json?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  subscriptions           subscriptions[]
+  payments                payments[]
+  invoices                invoices[]
+
+  @@index([team_id])
+  @@index([provider])
+}
+
+model subscription_plans {
+  id                      String   @id @default(uuid())
+  name                    String
+  description             String?  @db.Text
+  price                   Decimal  @db.Decimal(10, 2)
+  currency                String   @default("USD")
+  interval                String   // monthly, yearly
+  features                Json
+  is_active               Boolean  @default(true)
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  subscriptions           subscriptions[]
+
+  @@index([is_active])
+}
+
+model payments {
+  id                      String   @id @default(uuid())
+  team_id                 String
+  subscription_id         String?
+  gateway_id              String
+  external_payment_id     String?
+  amount                  Decimal  @db.Decimal(10, 2)
+  currency                String   @default("USD")
+  status                  String   // Pending, Completed, Failed, Refunded
+  payment_method          String?
+  metadata                Json?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  subscriptions           subscriptions? @relation(fields: [subscription_id], references: [id])
+  payment_gateways        payment_gateways @relation(fields: [gateway_id], references: [id])
+  invoices                invoices[]
+
+  @@index([team_id])
+  @@index([subscription_id])
+  @@index([gateway_id])
+  @@index([status])
+}
+
+model invoices {
+  id                      String   @id @default(uuid())
+  team_id                 String
+  subscription_id         String?
+  payment_id              String?
+  gateway_id              String
+  invoice_number          String   @unique
+  amount                  Decimal  @db.Decimal(10, 2)
+  currency                String   @default("USD")
+  status                  String   // Draft, Sent, Paid, Overdue, Cancelled
+  due_date                DateTime
+  paid_at                 DateTime?
+  pdf_url                 String?
+  metadata                Json?
+  created_at              DateTime @default(now())
+  updated_at              DateTime @updatedAt
+
+  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  subscriptions           subscriptions? @relation(fields: [subscription_id], references: [id])
+  payments                payments? @relation(fields: [payment_id], references: [id])
+  payment_gateways        payment_gateways @relation(fields: [gateway_id], references: [id])
+
+  @@index([team_id])
+  @@index([subscription_id])
+  @@index([payment_id])
+  @@index([gateway_id])
+  @@index([status])
+  @@index([invoice_number])
 }
