@@ -95,9 +95,10 @@ export const PERMISSIONS = {
   'ecommerce:recover-carts': ['Owner', 'Admin', 'Manager'],
 
   // Payment Gateways & Subscriptions
-  'payments:configure-gateways': ['Owner'],
-  'payments:read-gateways': ['Owner', 'Admin'],
-  'payments:create-subscriptions': ['Owner'],
+  'payments:create': ['Owner'],
+  'payments:read': ['Owner', 'Admin'],
+  'payments:update': ['Owner'],
+  'payments:delete': ['Owner'],
   'payments:read-subscriptions': ['Owner', 'Admin'],
   'payments:update-subscriptions': ['Owner'],
   'payments:cancel-subscriptions': ['Owner'],

@@ -2913,3 +2913,110 @@ export default {};
  *             phone:
  *               type: string
  */
+
+/**
+ * @swagger
+ * /api/v1/payments/gateways:
+ *   post:
+ *     summary: Create payment gateway
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - provider
+ *               - credentials
+ *             properties:
+ *               provider:
+ *                 type: string
+ *                 enum: [Stripe, PayPal, Razorpay]
+ *               credentials:
+ *                 type: object
+ *           example:
+ *             provider: "Stripe"
+ *             credentials:
+ *               secret_key: "sk_test_..."
+ *     responses:
+ *       201:
+ *         description: Gateway created
+ *   get:
+ *     summary: List payment gateways
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of gateways
+ *
+ * /api/v1/payments/plans:
+ *   get:
+ *     summary: Get subscription plans
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of plans
+ *
+ * /api/v1/payments/subscriptions:
+ *   post:
+ *     summary: Create subscription
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - plan_id
+ *               - gateway_id
+ *             properties:
+ *               plan_id:
+ *                 type: string
+ *               gateway_id:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Subscription created
+ *   get:
+ *     summary: Get subscriptions
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of subscriptions
+ *
+ * /api/v1/payments/subscriptions/{id}/cancel:
+ *   post:
+ *     summary: Cancel subscription
+ *     tags: [Payments]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               immediate:
+ *                 type: boolean
+ *                 default: false
+ *     responses:
+ *       200:
+ *         description: Subscription cancelled
+ */
