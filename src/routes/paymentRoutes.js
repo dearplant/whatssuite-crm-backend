@@ -30,4 +30,12 @@ router.get('/', authorize('payments:read'), paymentController.listPayments);
 router.get('/:id', authorize('payments:read'), paymentController.getPayment);
 router.post('/:id/refund', authorize('payments:update'), paymentController.refundPayment);
 
+// Invoice routes
+router.get('/invoices', authorize('payments:read'), paymentController.listInvoices);
+router.get('/invoices/:id', authorize('payments:read'), paymentController.getInvoice);
+router.get('/invoices/:id/pdf', authorize('payments:read'), paymentController.getInvoicePDF);
+
+// Admin routes
+router.post('/plans', authorize('payments:create'), paymentController.createSubscriptionPlan);
+
 export default router;

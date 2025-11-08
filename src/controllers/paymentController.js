@@ -529,3 +529,186 @@ export async function refundPayment(req, res) {
     });
   }
 }
+
+/**
+ * List invoices
+ * GET /api/v1/payments/invoices
+ */
+export async function listInvoices(req, res) {
+  try {
+    const teamId = req.user.team_id;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const where = { team_id: teamId };
+    if (status) where.status = status;
+
+    const invoices = await prisma.invoices.findMany({
+      where,
+      include: {
+        payment_gateways: {
+          select: {
+            id: true,
+            provider: true,
+          },
+        },
+        subscriptions: {
+          select: {
+            id: true,
+            status: true,
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      skip: (page - 1) * limit,
+      take: parseInt(limit),
+    });
+
+    const total = await prisma.invoices.count({ where });
+
+    return res.json({
+      success: true,
+      data: invoices,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    logger.error('Error listing invoices:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to list invoices',
+    });
+  }
+}
+
+/**
+ * Get invoice by ID
+ * GET /api/v1/payments/invoices/:id
+ */
+export async function getInvoice(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.team_id;
+
+    const invoice = await prisma.invoices.findFirst({
+      where: {
+        id,
+        team_id: teamId,
+      },
+      include: {
+        payment_gateways: {
+          select: {
+            id: true,
+            provider: true,
+          },
+        },
+        subscriptions: true,
+        payments: true,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: invoice,
+    });
+  } catch (error) {
+    logger.error('Error getting invoice:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to get invoice',
+    });
+  }
+}
+
+/**
+ * Get invoice PDF
+ * GET /api/v1/payments/invoices/:id/pdf
+ */
+export async function getInvoicePDF(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.team_id;
+
+    const invoice = await prisma.invoices.findFirst({
+      where: {
+        id,
+        team_id: teamId,
+      },
+    });
+
+    if (!invoice) {
+      return res.status(404).json({
+        success: false,
+        message: 'Invoice not found',
+      });
+    }
+
+    // For now, return a simple message
+    // In production, this would generate a PDF using pdfkit
+    return res.json({
+      success: true,
+      message: 'PDF generation not yet implemented',
+      data: {
+        invoice_id: invoice.id,
+        invoice_number: invoice.invoice_number,
+        pdf_url: invoice.pdf_url,
+      },
+    });
+  } catch (error) {
+    logger.error('Error getting invoice PDF:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to get invoice PDF',
+    });
+  }
+}
+
+/**
+ * Create subscription plan (admin only)
+ * POST /api/v1/payments/plans
+ */
+export async function createSubscriptionPlan(req, res) {
+  try {
+    const { name, description, price, currency, interval, features } = req.body;
+
+    const plan = await prisma.subscription_plans.create({
+      data: {
+        id: crypto.randomUUID(),
+        name,
+        description,
+        price,
+        currency: currency || 'USD',
+        interval,
+        features,
+        is_active: true,
+      },
+    });
+
+    logger.info('Subscription plan created', {
+      planId: plan.id,
+      name,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Subscription plan created successfully',
+      data: plan,
+    });
+  } catch (error) {
+    logger.error('Error creating subscription plan:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create subscription plan',
+    });
+  }
+}
