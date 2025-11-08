@@ -77,9 +77,7 @@ export function registerTrigger(flowId, teamId, triggerType, config = {}) {
   }
 
   // Remove existing registration if any
-  triggerCache[triggerType] = triggerCache[triggerType].filter(
-    (t) => t.flowId !== flowId
-  );
+  triggerCache[triggerType] = triggerCache[triggerType].filter((t) => t.flowId !== flowId);
 
   // Add new registration
   triggerCache[triggerType].push({
@@ -96,9 +94,7 @@ export function registerTrigger(flowId, teamId, triggerType, config = {}) {
  */
 export function unregisterTrigger(flowId, triggerType) {
   if (triggerCache[triggerType]) {
-    triggerCache[triggerType] = triggerCache[triggerType].filter(
-      (t) => t.flowId !== flowId
-    );
+    triggerCache[triggerType] = triggerCache[triggerType].filter((t) => t.flowId !== flowId);
     logger.debug(`Trigger unregistered`, { flowId, triggerType });
   }
 }
@@ -176,14 +172,14 @@ function matchesTriggerConditions(trigger, eventData) {
   switch (trigger.config.type) {
     case TRIGGER_TYPES.KEYWORD_MATCH:
       return matchesKeyword(config, eventData);
-    
+
     case TRIGGER_TYPES.TAG_ADDED:
     case TRIGGER_TYPES.TAG_REMOVED:
       return matchesTag(config, eventData);
-    
+
     case TRIGGER_TYPES.MESSAGE_RECEIVED:
       return matchesMessageConditions(config, eventData);
-    
+
     default:
       return true; // No specific conditions, match all
   }
@@ -202,7 +198,7 @@ function matchesKeyword(config, eventData) {
 
   return config.keywords.some((keyword) => {
     const kw = keyword.toLowerCase();
-    
+
     switch (matchType) {
       case 'exact':
         return message === kw;

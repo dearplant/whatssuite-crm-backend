@@ -18,6 +18,8 @@ RUN apk add --no-cache \
 COPY package*.json ./
 
 # Install all dependencies (including devDependencies)
+# Skip Chromium download for puppeteer
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN npm install
 
 # Copy Prisma schema

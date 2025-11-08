@@ -13,6 +13,7 @@ import './workers/chatbotWorker.js'; // Initialize chatbot worker
 import './workers/transcriptionWorker.js'; // Initialize transcription worker
 import { initializeCampaignWorker } from './workers/campaignWorker.js'; // Initialize campaign worker
 import { initializeTriggers } from './services/flowTriggers.js';
+import cronScheduler from './services/cronScheduler.js';
 
 // Load environment variables
 dotenv.config();
@@ -53,6 +54,14 @@ const startServer = async () => {
       logger.warn('⚠️  Failed to restore WhatsApp connections:', error.message);
     }
 
+    // Initialize cron scheduler
+    try {
+      cronScheduler.initialize();
+      logger.info('✅ Cron scheduler initialized successfully');
+    } catch (error) {
+      logger.warn('⚠️  Failed to initialize cron scheduler:', error.message);
+    }
+
     // Start HTTP server
     httpServer.listen(PORT, () => {
       logger.info(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV} mode`);
@@ -77,6 +86,10 @@ const gracefulShutdown = async (signal) => {
     logger.info('HTTP server closed');
 
     try {
+      // Stop all cron jobs
+      cronScheduler.stopAll();
+      logger.info('Cron scheduler stopped');
+
       // Close Socket.io
       await closeSocketIO();
       logger.info('Socket.io closed');

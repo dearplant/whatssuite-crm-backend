@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WhatsApp Account Offline Alert</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f4f4f4;
+    }
+    .container {
+      background-color: #ffffff;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    .alert-icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    h1 {
+      color: #d32f2f;
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 20px 0;
+    }
+    .alert-box {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+    .info-table {
+      width: 100%;
+      margin: 20px 0;
+      border-collapse: collapse;
+    }
+    .info-table td {
+      padding: 10px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .info-table td:first-child {
+      font-weight: 600;
+      color: #666;
+      width: 40%;
+    }
+    .action-button {
+      display: inline-block;
+      padding: 12px 30px;
+      background-color: #25D366;
+      color: #ffffff;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: 600;
+      margin: 20px 0;
+    }
+    .footer {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 2px solid #f0f0f0;
+      color: #666;
+      font-size: 14px;
+    }
+    .footer a {
+      color: #25D366;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="alert-icon">⚠️</div>
+      <h1>WhatsApp Account Offline</h1>
+    </div>
+
+    <div class="content">
+      <p>Hello {{firstName}},</p>
+
+      <div class="alert-box">
+        <strong>Your WhatsApp account has been offline for more than 6 hours.</strong>
+      </div>
+
+      <p>We've detected that your WhatsApp Business account is currently disconnected and has been offline for an extended period.</p>
+
+      <table class="info-table">
+        <tr>
+          <td>Account Name:</td>
+          <td><strong>{{accountName}}</strong></td>
+        </tr>
+        <tr>
+          <td>Phone Number:</td>
+          <td><strong>{{phoneNumber}}</strong></td>
+        </tr>
+        <tr>
+          <td>Offline Duration:</td>
+          <td><strong>{{offlineHours}} hours {{offlineMinutes}} minutes</strong></td>
+        </tr>
+        {{#if lastConnectedAt}}
+        <tr>
+          <td>Last Connected:</td>
+          <td>{{lastConnectedAt}}</td>
+        </tr>
+        {{/if}}
+      </table>
+
+      <p><strong>What this means:</strong></p>
+      <ul>
+        <li>You cannot send or receive WhatsApp messages</li>
+        <li>Scheduled campaigns will not be delivered</li>
+        <li>Automated flows and chatbots are not responding</li>
+        <li>Your customers may not receive important notifications</li>
+      </ul>
+
+      <p><strong>Action Required:</strong></p>
+      <p>Please reconnect your WhatsApp account as soon as possible to resume normal operations.</p>
+
+      <center>
+        <a href="{{appUrl}}/whatsapp/accounts" class="action-button">Reconnect WhatsApp Account</a>
+      </center>
+
+      <p><strong>Common reasons for disconnection:</strong></p>
+      <ul>
+        <li>WhatsApp logged out on your mobile device</li>
+        <li>Network connectivity issues</li>
+        <li>Server restart or maintenance</li>
+        <li>Session expired or invalidated</li>
+      </ul>
+
+      <p>If you continue to experience issues, please contact our support team for assistance.</p>
+    </div>
+
+    <div class="footer">
+      <p>This is an automated alert from {{appName}}</p>
+      <p>Need help? Contact us at <a href="mailto:{{supportEmail}}">{{supportEmail}}</a></p>
+    </div>
+  </div>
+</body>
+</html>

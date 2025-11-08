@@ -210,10 +210,18 @@ const getConversation = async (req, res) => {
     });
   } catch (error) {
     logger.error('Error in getConversation controller:', error);
-    res.status(error.message === 'Conversation not found' ? 404 : error.message.includes('Unauthorized') ? 403 : 500).json({
-      success: false,
-      message: error.message || 'Failed to fetch conversation',
-    });
+    res
+      .status(
+        error.message === 'Conversation not found'
+          ? 404
+          : error.message.includes('Unauthorized')
+            ? 403
+            : 500
+      )
+      .json({
+        success: false,
+        message: error.message || 'Failed to fetch conversation',
+      });
   }
 };
 
@@ -261,10 +269,18 @@ const handoffConversation = async (req, res) => {
     });
   } catch (error) {
     logger.error('Error in handoffConversation controller:', error);
-    res.status(error.message === 'Conversation not found' ? 404 : error.message.includes('Unauthorized') ? 403 : 400).json({
-      success: false,
-      message: error.message || 'Failed to handoff conversation',
-    });
+    res
+      .status(
+        error.message === 'Conversation not found'
+          ? 404
+          : error.message.includes('Unauthorized')
+            ? 403
+            : 400
+      )
+      .json({
+        success: false,
+        message: error.message || 'Failed to handoff conversation',
+      });
   }
 };
 

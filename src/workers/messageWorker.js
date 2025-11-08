@@ -40,7 +40,7 @@ if (process.env.NODE_ENV !== 'test') {
 
     try {
       let message;
-      let isCampaignMessage = !!campaignId;
+      const isCampaignMessage = !!campaignId;
 
       // Handle campaign messages differently
       if (isCampaignMessage) {

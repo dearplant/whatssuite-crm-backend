@@ -68,7 +68,7 @@ class UserModel {
     const dbUser = await prisma.users.findUnique({
       where: { email },
     });
-    
+
     const user = this.mapToModel(dbUser);
     if (user && !includePassword) {
       delete user.password;
@@ -100,7 +100,7 @@ class UserModel {
    */
   async update(id, data) {
     const updateData = {};
-    
+
     if (data.email !== undefined) updateData.email = data.email;
     if (data.password !== undefined) updateData.password_hash = data.password;
     if (data.password_hash !== undefined) updateData.password_hash = data.password_hash;
@@ -121,14 +121,14 @@ class UserModel {
     if (data.last_login_at !== undefined) updateData.last_login_at = data.last_login_at;
     if (data.deletedAt !== undefined) updateData.deleted_at = data.deletedAt;
     if (data.deleted_at !== undefined) updateData.deleted_at = data.deleted_at;
-    
+
     updateData.updated_at = new Date();
 
     const dbUser = await prisma.users.update({
       where: { id },
       data: updateData,
     });
-    
+
     const user = this.mapToModel(dbUser);
     delete user.password;
     return user;

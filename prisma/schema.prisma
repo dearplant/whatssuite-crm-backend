@@ -229,6 +229,8 @@ model contacts {
   flow_executions       flow_executions[]
   messages              messages[]
   chatbot_conversations chatbot_conversations[]
+  ecommerce_orders      ecommerce_orders[]
+  abandoned_carts       abandoned_carts[]
 
   @@unique([team_id, phone])
   @@index([created_at])
@@ -423,6 +425,9 @@ model teams {
   templates         templates[]
   whatsapp_accounts whatsapp_accounts[]
   segments          segments[]
+  ecommerce_integrations ecommerce_integrations[]
+  ecommerce_orders  ecommerce_orders[]
+  abandoned_carts   abandoned_carts[]
 
   @@index([owner_id])
   @@index([slug])
@@ -484,10 +489,26 @@ model users {
   whatsapp_accounts     whatsapp_accounts[]
   chatbots              chatbots[]
   voice_transcriptions  voice_transcriptions[]
+  refresh_tokens        refresh_tokens[]
+  ecommerce_integrations ecommerce_integrations[]
 
   @@index([created_at])
   @@index([email])
   @@index([is_active])
+}
+
+model refresh_tokens {
+  id         String   @id @default(uuid())
+  token      String   @unique
+  user_id    String
+  expires_at DateTime
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([expires_at])
 }
 
 model whatsapp_accounts {
@@ -647,4 +668,134 @@ model voice_transcriptions {
 
   @@index([user_id])
   @@index([message_id])
+}
+
+enum EcommerceProvider {
+  Shopify
+  WooCommerce
+}
+
+enum EcommerceIntegrationStatus {
+  Active
+  Inactive
+  Error
+}
+
+model ecommerce_integrations {
+  id                    String                      @id @default(uuid())
+  team_id               String
+  user_id               String
+  provider              EcommerceProvider
+  store_url             String
+  store_name            String?
+  access_token_encrypted String                     @db.Text
+  refresh_token_encrypted String?                   @db.Text
+  webhook_secret        String?
+  status                EcommerceIntegrationStatus  @default(Active)
+  last_sync_at          DateTime?
+  sync_error            String?                     @db.Text
+  metadata              Json?
+  is_active             Boolean                     @default(true)
+  created_at            DateTime                    @default(now())
+  updated_at            DateTime                    @updatedAt
+  
+  teams                 teams                       @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  users                 users                       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  orders                ecommerce_orders[]
+  abandoned_carts       abandoned_carts[]
+
+  @@unique([team_id, provider, store_url])
+  @@index([team_id])
+  @@index([user_id])
+  @@index([status])
+}
+
+enum OrderStatus {
+  Pending
+  Processing
+  Completed
+  Cancelled
+  Refunded
+  Failed
+}
+
+model ecommerce_orders {
+  id                    String                  @id @default(uuid())
+  integration_id        String
+  team_id               String
+  contact_id            String?
+  external_order_id     String
+  order_number          String
+  customer_email        String?
+  customer_phone        String?
+  customer_name         String?
+  total_amount          Decimal                 @db.Decimal(10, 2)
+  currency              String                  @default("USD")
+  status                OrderStatus
+  items                 Json
+  shipping_address      Json?
+  billing_address       Json?
+  tracking_number       String?
+  tracking_url          String?
+  fulfillment_status    String?
+  payment_status        String?
+  notes                 String?                 @db.Text
+  metadata              Json?
+  synced_at             DateTime                @default(now())
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+  
+  integration           ecommerce_integrations  @relation(fields: [integration_id], references: [id], onDelete: Cascade)
+  teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  contacts              contacts?               @relation(fields: [contact_id], references: [id], onDelete: SetNull)
+
+  @@unique([integration_id, external_order_id])
+  @@index([integration_id])
+  @@index([team_id])
+  @@index([contact_id])
+  @@index([status])
+  @@index([customer_email])
+  @@index([customer_phone])
+}
+
+enum CartStatus {
+  Abandoned
+  Recovered
+  Completed
+  Expired
+}
+
+model abandoned_carts {
+  id                    String                  @id @default(uuid())
+  integration_id        String
+  team_id               String
+  contact_id            String?
+  external_cart_id      String
+  customer_email        String?
+  customer_phone        String?
+  customer_name         String?
+  cart_url              String
+  total_amount          Decimal                 @db.Decimal(10, 2)
+  currency              String                  @default("USD")
+  items                 Json
+  status                CartStatus              @default(Abandoned)
+  abandoned_at          DateTime
+  recovery_sent_at      DateTime?
+  recovered_at          DateTime?
+  expires_at            DateTime
+  metadata              Json?
+  created_at            DateTime                @default(now())
+  updated_at            DateTime                @updatedAt
+  
+  integration           ecommerce_integrations  @relation(fields: [integration_id], references: [id], onDelete: Cascade)
+  teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  contacts              contacts?               @relation(fields: [contact_id], references: [id], onDelete: SetNull)
+
+  @@unique([integration_id, external_cart_id])
+  @@index([integration_id])
+  @@index([team_id])
+  @@index([contact_id])
+  @@index([status])
+  @@index([abandoned_at])
+  @@index([expires_at])
 }

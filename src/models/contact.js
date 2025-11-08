@@ -9,12 +9,10 @@ class ContactModel {
    */
   mapToModel(dbContact) {
     if (!dbContact) return null;
-    
+
     // Combine first and last name into name field
-    const name = [dbContact.first_name, dbContact.last_name]
-      .filter(Boolean)
-      .join(' ') || undefined;
-    
+    const name = [dbContact.first_name, dbContact.last_name].filter(Boolean).join(' ') || undefined;
+
     return {
       id: dbContact.id,
       teamId: dbContact.team_id,

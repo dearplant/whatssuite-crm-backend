@@ -19,7 +19,7 @@ async function createFlow(req, res) {
 
     return res.status(201).json({
       message: 'Flow created successfully',
-      flow
+      flow,
     });
   } catch (error) {
     logger.error('Error in createFlow controller:', error);
@@ -27,13 +27,13 @@ async function createFlow(req, res) {
     if (error.message.includes('validation failed')) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to create flow'
+      message: 'Failed to create flow',
     });
   }
 }
@@ -47,22 +47,23 @@ async function getFlows(req, res) {
     const teamId = req.user.teamId;
 
     const filters = {
-      is_active: req.query.is_active === 'true' ? true : req.query.is_active === 'false' ? false : undefined,
+      is_active:
+        req.query.is_active === 'true' ? true : req.query.is_active === 'false' ? false : undefined,
       triggerType: req.query.triggerType,
-      search: req.query.search
+      search: req.query.search,
     };
 
     const flows = await flowService.getFlows(teamId, filters);
 
     return res.status(200).json({
       flows,
-      total: flows.length
+      total: flows.length,
     });
   } catch (error) {
     logger.error('Error in getFlows controller:', error);
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to fetch flows'
+      message: 'Failed to fetch flows',
     });
   }
 }
@@ -85,13 +86,13 @@ async function getFlowById(req, res) {
     if (error.message === 'Flow not found') {
       return res.status(404).json({
         error: 'NotFoundError',
-        message: 'Flow not found'
+        message: 'Flow not found',
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to fetch flow'
+      message: 'Failed to fetch flow',
     });
   }
 }
@@ -110,7 +111,7 @@ async function updateFlow(req, res) {
 
     return res.status(200).json({
       message: 'Flow updated successfully',
-      flow
+      flow,
     });
   } catch (error) {
     logger.error('Error in updateFlow controller:', error);
@@ -118,20 +119,20 @@ async function updateFlow(req, res) {
     if (error.message === 'Flow not found') {
       return res.status(404).json({
         error: 'NotFoundError',
-        message: 'Flow not found'
+        message: 'Flow not found',
       });
     }
 
     if (error.message.includes('validation failed')) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to update flow'
+      message: 'Failed to update flow',
     });
   }
 }
@@ -149,7 +150,7 @@ async function deleteFlow(req, res) {
     await flowService.deleteFlow(id, teamId, userId);
 
     return res.status(200).json({
-      message: 'Flow deleted successfully'
+      message: 'Flow deleted successfully',
     });
   } catch (error) {
     logger.error('Error in deleteFlow controller:', error);
@@ -157,20 +158,20 @@ async function deleteFlow(req, res) {
     if (error.message === 'Flow not found') {
       return res.status(404).json({
         error: 'NotFoundError',
-        message: 'Flow not found'
+        message: 'Flow not found',
       });
     }
 
     if (error.message.includes('Cannot delete an active flow')) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to delete flow'
+      message: 'Failed to delete flow',
     });
   }
 }
@@ -189,7 +190,7 @@ async function activateFlow(req, res) {
 
     return res.status(200).json({
       message: 'Flow activated successfully',
-      flow
+      flow,
     });
   } catch (error) {
     logger.error('Error in activateFlow controller:', error);
@@ -197,20 +198,20 @@ async function activateFlow(req, res) {
     if (error.message === 'Flow not found') {
       return res.status(404).json({
         error: 'NotFoundError',
-        message: 'Flow not found'
+        message: 'Flow not found',
       });
     }
 
     if (error.message.includes('validation errors')) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to activate flow'
+      message: 'Failed to activate flow',
     });
   }
 }
@@ -229,7 +230,7 @@ async function deactivateFlow(req, res) {
 
     return res.status(200).json({
       message: 'Flow deactivated successfully',
-      flow
+      flow,
     });
   } catch (error) {
     logger.error('Error in deactivateFlow controller:', error);
@@ -237,13 +238,13 @@ async function deactivateFlow(req, res) {
     if (error.message === 'Flow not found') {
       return res.status(404).json({
         error: 'NotFoundError',
-        message: 'Flow not found'
+        message: 'Flow not found',
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to deactivate flow'
+      message: 'Failed to deactivate flow',
     });
   }
 }
@@ -266,13 +267,13 @@ async function getFlowStats(req, res) {
     if (error.message === 'Flow not found') {
       return res.status(404).json({
         error: 'NotFoundError',
-        message: 'Flow not found'
+        message: 'Flow not found',
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to fetch flow statistics'
+      message: 'Failed to fetch flow statistics',
     });
   }
 }
@@ -290,7 +291,7 @@ async function testFlow(req, res) {
     if (!contactId) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: 'Contact ID is required for flow testing'
+        message: 'Contact ID is required for flow testing',
       });
     }
 
@@ -302,14 +303,14 @@ async function testFlow(req, res) {
     const contact = await prisma.contacts.findFirst({
       where: {
         id: contactId,
-        team_id: teamId
-      }
+        team_id: teamId,
+      },
     });
 
     if (!contact) {
       return res.status(404).json({
         error: 'NotFound',
-        message: 'Contact not found'
+        message: 'Contact not found',
       });
     }
 
@@ -317,7 +318,7 @@ async function testFlow(req, res) {
     const { startFlowExecution } = await import('../services/flowExecutor.js');
     const execution = await startFlowExecution(id, contactId, {
       testMode: true,
-      triggeredBy: req.user.id
+      triggeredBy: req.user.id,
     });
 
     return res.status(200).json({
@@ -325,8 +326,8 @@ async function testFlow(req, res) {
       execution: {
         id: execution.id,
         status: execution.status,
-        started_at: execution.started_at
-      }
+        started_at: execution.started_at,
+      },
     });
   } catch (error) {
     logger.error('Error in testFlow controller:', error);
@@ -334,13 +335,13 @@ async function testFlow(req, res) {
     if (error.message.includes('not found')) {
       return res.status(404).json({
         error: 'NotFound',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to test flow'
+      message: 'Failed to test flow',
     });
   }
 }
@@ -358,7 +359,7 @@ async function getFlowExecutions(req, res) {
     await flowService.getFlowById(id, teamId);
 
     const { default: prisma } = await import('../config/database.js');
-    
+
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const skip = (page - 1) * limit;
@@ -366,7 +367,7 @@ async function getFlowExecutions(req, res) {
     const [executions, total] = await Promise.all([
       prisma.flow_executions.findMany({
         where: {
-          flow_id: id
+          flow_id: id,
         },
         include: {
           contacts: {
@@ -375,21 +376,21 @@ async function getFlowExecutions(req, res) {
               phone: true,
               first_name: true,
               last_name: true,
-              email: true
-            }
-          }
+              email: true,
+            },
+          },
         },
         orderBy: {
-          started_at: 'desc'
+          started_at: 'desc',
         },
         skip,
-        take: limit
+        take: limit,
       }),
       prisma.flow_executions.count({
         where: {
-          flow_id: id
-        }
-      })
+          flow_id: id,
+        },
+      }),
     ]);
 
     return res.status(200).json({
@@ -398,8 +399,8 @@ async function getFlowExecutions(req, res) {
         page,
         limit,
         total,
-        totalPages: Math.ceil(total / limit)
-      }
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
     logger.error('Error in getFlowExecutions controller:', error);
@@ -407,13 +408,13 @@ async function getFlowExecutions(req, res) {
     if (error.message.includes('not found')) {
       return res.status(404).json({
         error: 'NotFound',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to fetch flow executions'
+      message: 'Failed to fetch flow executions',
     });
   }
 }
@@ -428,10 +429,10 @@ async function getFlowExecution(req, res) {
     const teamId = req.user.teamId;
 
     const { default: prisma } = await import('../config/database.js');
-    
+
     const execution = await prisma.flow_executions.findFirst({
       where: {
-        id: executionId
+        id: executionId,
       },
       include: {
         flows: {
@@ -442,8 +443,8 @@ async function getFlowExecution(req, res) {
             team_id: true,
             nodes: true,
             edges: true,
-            triggerType: true
-          }
+            triggerType: true,
+          },
         },
         contacts: {
           select: {
@@ -452,23 +453,23 @@ async function getFlowExecution(req, res) {
             first_name: true,
             last_name: true,
             email: true,
-            company: true
-          }
+            company: true,
+          },
         },
         conversations: {
           select: {
             id: true,
             status: true,
-            last_message_at: true
-          }
-        }
-      }
+            last_message_at: true,
+          },
+        },
+      },
     });
 
     if (!execution) {
       return res.status(404).json({
         error: 'NotFound',
-        message: 'Flow execution not found'
+        message: 'Flow execution not found',
       });
     }
 
@@ -476,7 +477,7 @@ async function getFlowExecution(req, res) {
     if (execution.flows.team_id !== teamId) {
       return res.status(403).json({
         error: 'Forbidden',
-        message: 'Access denied'
+        message: 'Access denied',
       });
     }
 
@@ -498,18 +499,18 @@ async function getFlowExecution(req, res) {
       duration,
       stepHistory,
       totalSteps: stepHistory.length,
-      currentStep: stepHistory.length > 0 ? stepHistory[stepHistory.length - 1] : null
+      currentStep: stepHistory.length > 0 ? stepHistory[stepHistory.length - 1] : null,
     };
 
     return res.status(200).json({
-      execution: enrichedExecution
+      execution: enrichedExecution,
     });
   } catch (error) {
     logger.error('Error in getFlowExecution controller:', error);
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to fetch flow execution'
+      message: 'Failed to fetch flow execution',
     });
   }
 }
@@ -527,7 +528,7 @@ async function triggerFlow(req, res) {
     if (!contactId) {
       return res.status(400).json({
         error: 'ValidationError',
-        message: 'Contact ID is required'
+        message: 'Contact ID is required',
       });
     }
 
@@ -539,14 +540,14 @@ async function triggerFlow(req, res) {
     const contact = await prisma.contacts.findFirst({
       where: {
         id: contactId,
-        team_id: teamId
-      }
+        team_id: teamId,
+      },
     });
 
     if (!contact) {
       return res.status(404).json({
         error: 'NotFound',
-        message: 'Contact not found'
+        message: 'Contact not found',
       });
     }
 
@@ -555,7 +556,7 @@ async function triggerFlow(req, res) {
     const execution = await triggerManual(id, contactId, {
       ...data,
       triggeredBy: req.user.id,
-      triggeredAt: new Date()
+      triggeredAt: new Date(),
     });
 
     return res.status(200).json({
@@ -563,8 +564,8 @@ async function triggerFlow(req, res) {
       execution: {
         id: execution.id,
         status: execution.status,
-        started_at: execution.started_at
-      }
+        started_at: execution.started_at,
+      },
     });
   } catch (error) {
     logger.error('Error in triggerFlow controller:', error);
@@ -572,13 +573,13 @@ async function triggerFlow(req, res) {
     if (error.message.includes('not found')) {
       return res.status(404).json({
         error: 'NotFound',
-        message: error.message
+        message: error.message,
       });
     }
 
     return res.status(500).json({
       error: 'InternalServerError',
-      message: 'Failed to trigger flow'
+      message: 'Failed to trigger flow',
     });
   }
 }
@@ -595,5 +596,5 @@ export {
   testFlow,
   getFlowExecutions,
   getFlowExecution,
-  triggerFlow
+  triggerFlow,
 };

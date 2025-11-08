@@ -11,10 +11,7 @@ class ContactController {
    */
   async createContact(req, res) {
     try {
-      const contact = await contactService.createContact(
-        req.validatedData,
-        req.user.id
-      );
+      const contact = await contactService.createContact(req.validatedData, req.user.id);
 
       return res.status(201).json({
         success: true,
@@ -66,11 +63,7 @@ class ContactController {
     try {
       const { page, limit, ...filters } = req.validatedData;
 
-      const result = await contactService.getContacts(
-        filters,
-        { page, limit },
-        req.user.id
-      );
+      const result = await contactService.getContacts(filters, { page, limit }, req.user.id);
 
       return res.status(200).json({
         success: true,
@@ -101,10 +94,7 @@ class ContactController {
    */
   async getContactById(req, res) {
     try {
-      const contact = await contactService.getContactById(
-        req.params.id,
-        req.user.id
-      );
+      const contact = await contactService.getContactById(req.params.id, req.user.id);
 
       return res.status(200).json({
         success: true,
@@ -240,12 +230,7 @@ class ContactController {
         });
       }
 
-      const result = await contactService.importContacts(
-        file,
-        userId,
-        whatsappAccountId,
-        teamId
-      );
+      const result = await contactService.importContacts(file, userId, whatsappAccountId, teamId);
 
       logger.info('Contact import initiated', {
         userId,

@@ -366,10 +366,13 @@ const processChatbotResponse = async (job) => {
   const { userId, messageId, content, isTranscribed = false } = job.data;
 
   try {
-    logger.info(`Processing chatbot response for ${isTranscribed ? 'transcribed' : 'text'} message`, {
-      jobId: job.id,
-      messageId,
-    });
+    logger.info(
+      `Processing chatbot response for ${isTranscribed ? 'transcribed' : 'text'} message`,
+      {
+        jobId: job.id,
+        messageId,
+      }
+    );
 
     // Get message details
     const message = await prisma.messages.findUnique({

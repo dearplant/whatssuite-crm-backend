@@ -31,8 +31,8 @@ const router = express.Router();
  *             required:
  *               - email
  *               - password
- *               - first_name
- *               - last_name
+ *               - firstName
+ *               - lastName
  *             properties:
  *               email:
  *                 type: string
@@ -43,12 +43,30 @@ const router = express.Router();
  *                 format: password
  *                 minLength: 8
  *                 example: SecurePass123!
- *               first_name:
+ *               firstName:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
  *                 example: John
- *               last_name:
+ *               lastName:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 50
  *                 example: Doe
+ *               phone:
+ *                 type: string
+ *                 pattern: '^\+[1-9]\d{1,14}$'
+ *                 example: '+1234567890'
+ *                 description: Phone number in E.164 format (optional)
+ *               language:
+ *                 type: string
+ *                 enum: [en, es, fr, de, pt, ar, zh, ja]
+ *                 example: en
+ *                 description: Preferred language (optional)
+ *               timezone:
+ *                 type: string
+ *                 example: 'America/New_York'
+ *                 description: User timezone (optional)
  *     responses:
  *       201:
  *         description: User registered successfully

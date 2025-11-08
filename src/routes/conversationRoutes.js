@@ -22,11 +22,7 @@ const handoffSchema = Joi.object({
  * @desc    Get conversation by ID with messages
  * @access  Private
  */
-router.get(
-  '/:id',
-  authorize('chatbots:read'),
-  chatbotController.getConversation
-);
+router.get('/:id', authorize('chatbots:read'), chatbotController.getConversation);
 
 /**
  * @route   POST /api/v1/ai/conversations/:id/handoff

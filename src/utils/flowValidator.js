@@ -18,7 +18,7 @@ const NODE_TYPES = {
   AI_CHATBOT: 'ai_chatbot',
   BRANCH: 'branch',
   JOIN: 'join',
-  END: 'end'
+  END: 'end',
 };
 
 // Supported trigger types
@@ -29,7 +29,7 @@ const TRIGGER_TYPES = {
   TAG_REMOVED: 'tag_removed',
   FIELD_UPDATED: 'field_updated',
   TIME_BASED: 'time_based',
-  WEBHOOK: 'webhook'
+  WEBHOOK: 'webhook',
 };
 
 // Supported condition operators
@@ -45,7 +45,7 @@ const CONDITION_OPERATORS = {
   GREATER_THAN_OR_EQUAL: 'greater_than_or_equal',
   LESS_THAN_OR_EQUAL: 'less_than_or_equal',
   IS_EMPTY: 'is_empty',
-  IS_NOT_EMPTY: 'is_not_empty'
+  IS_NOT_EMPTY: 'is_not_empty',
 };
 
 /**
@@ -98,7 +98,7 @@ function validateFlow(flowData) {
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -127,7 +127,9 @@ function validateNodes(nodes) {
     nodeIds.add(node.id);
 
     if (!node.type || !Object.values(NODE_TYPES).includes(node.type)) {
-      errors.push(`Node ${node.id} has invalid type. Must be one of: ${Object.values(NODE_TYPES).join(', ')}`);
+      errors.push(
+        `Node ${node.id} has invalid type. Must be one of: ${Object.values(NODE_TYPES).join(', ')}`
+      );
       return;
     }
 
@@ -158,7 +160,11 @@ function validateNodeConfig(node) {
       if (!node.config || !node.config.message) {
         errors.push(`Send message node ${node.id} must have a message in config`);
       }
-      if (node.config && node.config.messageType && !['text', 'image', 'video', 'audio', 'document'].includes(node.config.messageType)) {
+      if (
+        node.config &&
+        node.config.messageType &&
+        !['text', 'image', 'video', 'audio', 'document'].includes(node.config.messageType)
+      ) {
         errors.push(`Send message node ${node.id} has invalid messageType`);
       }
       break;
@@ -171,7 +177,10 @@ function validateNodeConfig(node) {
           if (!condition.field) {
             errors.push(`Condition ${idx} in node ${node.id} must have a field`);
           }
-          if (!condition.operator || !Object.values(CONDITION_OPERATORS).includes(condition.operator)) {
+          if (
+            !condition.operator ||
+            !Object.values(CONDITION_OPERATORS).includes(condition.operator)
+          ) {
             errors.push(`Condition ${idx} in node ${node.id} has invalid operator`);
           }
         });
@@ -198,8 +207,14 @@ function validateNodeConfig(node) {
       if (!node.config || !node.config.url) {
         errors.push(`HTTP request node ${node.id} must have a url in config`);
       }
-      if (!node.config || !node.config.method || !['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(node.config.method)) {
-        errors.push(`HTTP request node ${node.id} must have a valid method (GET, POST, PUT, PATCH, DELETE)`);
+      if (
+        !node.config ||
+        !node.config.method ||
+        !['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(node.config.method)
+      ) {
+        errors.push(
+          `HTTP request node ${node.id} must have a valid method (GET, POST, PUT, PATCH, DELETE)`
+        );
       }
       break;
 
@@ -224,7 +239,7 @@ function validateNodeConfig(node) {
  */
 function validateEdges(edges, nodes) {
   const errors = [];
-  const nodeIds = new Set(nodes.map(n => n.id));
+  const nodeIds = new Set(nodes.map((n) => n.id));
 
   edges.forEach((edge, index) => {
     if (!edge.id) {
@@ -300,12 +315,12 @@ function buildAdjacencyList(nodes, edges) {
   const adjacencyList = new Map();
 
   // Initialize with all nodes
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     adjacencyList.set(node.id, []);
   });
 
   // Add edges
-  edges.forEach(edge => {
+  edges.forEach((edge) => {
     const neighbors = adjacencyList.get(edge.source) || [];
     neighbors.push(edge.target);
     adjacencyList.set(edge.source, neighbors);
@@ -364,22 +379,22 @@ function detectOrphanedNodes(nodes, edges) {
   const nodesWithIncoming = new Set();
   const nodesWithOutgoing = new Set();
 
-  edges.forEach(edge => {
+  edges.forEach((edge) => {
     nodesWithOutgoing.add(edge.source);
     nodesWithIncoming.add(edge.target);
   });
 
   // Find trigger node (should have no incoming edges)
-  const triggerNodes = nodes.filter(n => n.type === NODE_TYPES.TRIGGER);
+  const triggerNodes = nodes.filter((n) => n.type === NODE_TYPES.TRIGGER);
   if (triggerNodes.length === 0) {
     errors.push('Flow must have at least one trigger node');
   }
 
   // Find end nodes (should have no outgoing edges)
-  const endNodes = nodes.filter(n => n.type === NODE_TYPES.END);
+  const endNodes = nodes.filter((n) => n.type === NODE_TYPES.END);
 
   // Check for orphaned nodes (excluding trigger and end nodes)
-  nodes.forEach(node => {
+  nodes.forEach((node) => {
     if (node.type === NODE_TYPES.TRIGGER) {
       // Trigger nodes should have outgoing edges
       if (!nodesWithOutgoing.has(node.id)) {
@@ -409,5 +424,5 @@ export {
   validateTriggerConfig,
   NODE_TYPES,
   TRIGGER_TYPES,
-  CONDITION_OPERATORS
+  CONDITION_OPERATORS,
 };

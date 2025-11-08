@@ -1,11 +1,18 @@
 /**
  * Socket.io Event Handlers
- * 
+ *
  * This module exports helper functions for emitting real-time events
  * to connected clients via Socket.io
  */
 
-import { getIO, emitToUser, emitToWhatsAppAccount, emitToCampaign, emitToContact, broadcastEvent } from '../config/socket.config.js';
+import {
+  getIO,
+  emitToUser,
+  emitToWhatsAppAccount,
+  emitToCampaign,
+  emitToContact,
+  broadcastEvent,
+} from '../config/socket.config.js';
 import { logger } from '../utils/logger.js';
 
 // Re-export socket utilities

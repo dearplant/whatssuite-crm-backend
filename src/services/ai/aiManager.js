@@ -78,9 +78,9 @@ export class AIManager {
    */
   async getProviderConfig(userId, providerType) {
     try {
-      const provider = await prisma.aIProvider.findFirst({
+      const provider = await prisma.ai_providers.findFirst({
         where: {
-          userId,
+          user_id: userId,
           provider: providerType,
         },
       });
@@ -125,9 +125,9 @@ export class AIManager {
       const encryptedCredentials = encryptCredentials(credentials);
 
       // Check if provider already exists
-      const existingProvider = await prisma.aIProvider.findFirst({
+      const existingProvider = await prisma.ai_providers.findFirst({
         where: {
-          userId,
+          user_id: userId,
           provider: providerType,
         },
       });
@@ -135,13 +135,13 @@ export class AIManager {
       let provider;
       if (existingProvider) {
         // Update existing provider
-        provider = await prisma.aIProvider.update({
+        provider = await prisma.ai_providers.update({
           where: { id: existingProvider.id },
           data: {
             credentials: encryptedCredentials,
             modelConfig,
-            isActive: true,
-            lastUsedAt: new Date(),
+            is_active: true,
+            last_used_at: new Date(),
           },
         });
 
@@ -152,13 +152,13 @@ export class AIManager {
         logger.info(`AI provider ${providerType} updated for user ${userId}`);
       } else {
         // Create new provider
-        provider = await prisma.aIProvider.create({
+        provider = await prisma.ai_providers.create({
           data: {
             userId,
             provider: providerType,
             credentials: encryptedCredentials,
             modelConfig,
-            isActive: true,
+            is_active: true,
           },
         });
 
@@ -180,10 +180,10 @@ export class AIManager {
    */
   async deleteProvider(userId, providerId) {
     try {
-      const provider = await prisma.aIProvider.findFirst({
+      const provider = await prisma.ai_providers.findFirst({
         where: {
           id: providerId,
-          userId,
+          user_id: userId,
         },
       });
 
@@ -191,7 +191,7 @@ export class AIManager {
         throw new Error('Provider not found');
       }
 
-      await prisma.aIProvider.delete({
+      await prisma.ai_providers.delete({
         where: { id: providerId },
       });
 
@@ -215,19 +215,19 @@ export class AIManager {
    */
   async listProviders(userId) {
     try {
-      const providers = await prisma.aIProvider.findMany({
-        where: { userId },
+      const providers = await prisma.ai_providers.findMany({
+        where: { user_id: userId },
         select: {
           id: true,
           provider: true,
-          isActive: true,
-          modelConfig: true,
-          usageCount: true,
-          totalTokens: true,
-          totalCost: true,
-          lastUsedAt: true,
-          createdAt: true,
-          updatedAt: true,
+          is_active: true,
+          model_config: true,
+          usage_count: true,
+          total_tokens: true,
+          total_cost: true,
+          last_used_at: true,
+          created_at: true,
+          updated_at: true,
         },
       });
 
@@ -288,7 +288,7 @@ export class AIManager {
         usage: {
           promptTokens: estimatedTokens,
           completionTokens: estimatedTokens,
-          totalTokens: estimatedTokens * 2,
+          total_tokens: estimatedTokens * 2,
         },
         cost: 0,
       });
@@ -306,16 +306,16 @@ export class AIManager {
    */
   async trackUsage(userId, providerType, response) {
     try {
-      await prisma.aIProvider.updateMany({
+      await prisma.ai_providers.updateMany({
         where: {
-          userId,
+          user_id: userId,
           provider: providerType,
         },
         data: {
-          usageCount: { increment: 1 },
-          totalTokens: { increment: response.usage.totalTokens },
-          totalCost: { increment: response.cost },
-          lastUsedAt: new Date(),
+          usage_count: { increment: 1 },
+          total_tokens: { increment: response.usage.totalTokens },
+          total_cost: { increment: response.cost },
+          last_used_at: new Date(),
         },
       });
     } catch (error) {

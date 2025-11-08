@@ -67,7 +67,7 @@ services:
       args:
         NODE_VERSION: 20
         NODE_ENV: ${NODE_ENV:-production}
-        PORT: ${PORT:-5000}
+        PORT: ${PORT:-4500}
     container_name: whatsapp-crm-backend
     restart: unless-stopped
     depends_on:
@@ -78,7 +78,7 @@ services:
     environment:
       # Application
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-5000}
+      PORT: ${PORT:-4500}
       
       # Database
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-whatsapp_crm}?schema=public
@@ -105,13 +105,16 @@ services:
       AWS_REGION: ${AWS_REGION}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
       
+      # Encryption
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      
       # Sentry
       SENTRY_DSN: ${SENTRY_DSN}
       
       # Frontend URL
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:
-      - "${PORT:-5000}:${PORT:-5000}"
+      - "${PORT:-4500}:${PORT:-4500}"
     volumes:
       - ./logs:/app/logs
       - ./sessions:/app/sessions

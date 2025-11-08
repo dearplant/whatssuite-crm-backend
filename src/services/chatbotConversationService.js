@@ -125,7 +125,8 @@ class ChatbotConversationService {
       const now = new Date();
       const currentTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-      const isWithinTimeRange = currentTime >= triggers.timeBasedStart && currentTime <= triggers.timeBasedEnd;
+      const isWithinTimeRange =
+        currentTime >= triggers.timeBasedStart && currentTime <= triggers.timeBasedEnd;
 
       if (!isWithinTimeRange) {
         return false; // Outside time window

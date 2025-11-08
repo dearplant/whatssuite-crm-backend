@@ -57,9 +57,9 @@ const config = {
   app: {
     name: process.env.APP_NAME || 'WhatsApp CRM Backend',
     env: currentEnv,
-    port: parseInt(process.env.PORT, 10) || 5000,
+    port: parseInt(process.env.PORT, 10) || 4500,
     apiVersion: process.env.API_VERSION || 'v1',
-    url: process.env.APP_URL || 'http://localhost:5000',
+    url: process.env.APP_URL || 'http://localhost:4500',
     isDevelopment: currentEnv === 'development',
     isStaging: currentEnv === 'staging',
     isProduction: currentEnv === 'production',
@@ -85,7 +85,7 @@ const config = {
     key: process.env.ENCRYPTION_KEY,
     algorithm: 'aes-256-gcm',
   },
-  
+
   // Shorthand for encryption key (for backward compatibility)
   encryptionKey: process.env.ENCRYPTION_KEY,
 

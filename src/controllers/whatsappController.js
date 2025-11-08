@@ -42,10 +42,10 @@ export async function disconnectAccount(req, res) {
     const userId = req.user.id;
 
     // Verify account belongs to user
-    const account = await prisma.whatsAppAccount.findFirst({
+    const account = await prisma.whatsapp_accounts.findFirst({
       where: {
         id: accountId,
-        userId,
+        user_id: userId,
       },
     });
 
@@ -84,10 +84,10 @@ export async function getQRCode(req, res) {
     const userId = req.user.id;
 
     // Verify account belongs to user
-    const account = await prisma.whatsAppAccount.findFirst({
+    const account = await prisma.whatsapp_accounts.findFirst({
       where: {
         id: accountId,
-        userId,
+        user_id: userId,
       },
     });
 
@@ -148,10 +148,10 @@ export async function getAccountHealth(req, res) {
     const userId = req.user.id;
 
     // Verify account belongs to user
-    const account = await prisma.whatsAppAccount.findFirst({
+    const account = await prisma.whatsapp_accounts.findFirst({
       where: {
         id: accountId,
-        userId,
+        user_id: userId,
       },
     });
 
@@ -187,17 +187,16 @@ export async function getAccountDetails(req, res) {
     const { accountId } = req.params;
     const userId = req.user.id;
 
-    const account = await prisma.whatsAppAccount.findFirst({
+    const account = await prisma.whatsapp_accounts.findFirst({
       where: {
         id: accountId,
-        userId,
+        user_id: userId,
       },
       include: {
         _count: {
           select: {
             messages: true,
             campaigns: true,
-            contacts: true,
           },
         },
       },
@@ -240,10 +239,10 @@ export async function sendMessage(req, res) {
     const { accountId, contactId, type, content, mediaUrl } = req.body;
 
     // Verify account belongs to user
-    const account = await prisma.whatsAppAccount.findFirst({
+    const account = await prisma.whatsapp_accounts.findFirst({
       where: {
         id: accountId,
-        userId,
+        user_id: userId,
       },
     });
 
@@ -274,11 +273,12 @@ export async function sendMessage(req, res) {
     const statusCode = error.message.includes('not found')
       ? 404
       : error.message.includes('not connected') || error.message.includes('limit reached')
-      ? 400
-      : 500;
+        ? 400
+        : 500;
 
     return res.status(statusCode).json({
-      error: statusCode === 404 ? 'NotFound' : statusCode === 400 ? 'BadRequest' : 'InternalServerError',
+      error:
+        statusCode === 404 ? 'NotFound' : statusCode === 400 ? 'BadRequest' : 'InternalServerError',
       message: error.message,
     });
   }

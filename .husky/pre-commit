@@ -1,4 +1,19 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
+# Run lint-staged for code formatting
 npx lint-staged
+
+# Check if any route files were staged
+ROUTE_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E 'src/(routes|controllers|docs)/.*\.js$' || true)
+
+if [ -n "$ROUTE_FILES" ]; then
+  echo "🔄 Route files changed, regenerating Swagger documentation..."
+  npm run swagger:generate
+  
+  # Add the generated swagger.json to the commit if it changed
+  if [ -f "swagger.json" ]; then
+    git add swagger.json
+    echo "✅ Swagger documentation updated and staged"
+  fi
+fi

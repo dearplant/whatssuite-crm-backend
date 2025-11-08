@@ -44,11 +44,7 @@ router.get(
  * @desc    Get a single chatbot by ID
  * @access  Private
  */
-router.get(
-  '/:id',
-  authorize('chatbots:read'),
-  chatbotController.getChatbotById
-);
+router.get('/:id', authorize('chatbots:read'), chatbotController.getChatbotById);
 
 /**
  * @route   PUT /api/v1/ai/chatbots/:id
@@ -67,22 +63,14 @@ router.put(
  * @desc    Activate a chatbot
  * @access  Private (Owner, Admin, Manager)
  */
-router.post(
-  '/:id/activate',
-  authorize('chatbots:update'),
-  chatbotController.activateChatbot
-);
+router.post('/:id/activate', authorize('chatbots:update'), chatbotController.activateChatbot);
 
 /**
  * @route   POST /api/v1/ai/chatbots/:id/deactivate
  * @desc    Deactivate a chatbot
  * @access  Private (Owner, Admin, Manager)
  */
-router.post(
-  '/:id/deactivate',
-  authorize('chatbots:update'),
-  chatbotController.deactivateChatbot
-);
+router.post('/:id/deactivate', authorize('chatbots:update'), chatbotController.deactivateChatbot);
 
 /**
  * @route   POST /api/v1/ai/chatbots/:id/test
@@ -101,11 +89,7 @@ router.post(
  * @desc    Delete a chatbot
  * @access  Private (Owner, Admin)
  */
-router.delete(
-  '/:id',
-  authorize('chatbots:delete'),
-  chatbotController.deleteChatbot
-);
+router.delete('/:id', authorize('chatbots:delete'), chatbotController.deleteChatbot);
 
 /**
  * @route   GET /api/v1/ai/chatbots/:id/conversations
@@ -123,10 +107,6 @@ router.get(
  * @desc    Get conversation statistics for a chatbot
  * @access  Private
  */
-router.get(
-  '/:id/stats',
-  authorize('chatbots:read'),
-  chatbotController.getChatbotStats
-);
+router.get('/:id/stats', authorize('chatbots:read'), chatbotController.getChatbotStats);
 
 export default router;

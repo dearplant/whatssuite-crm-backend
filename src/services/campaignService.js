@@ -807,11 +807,11 @@ export async function duplicateCampaign(userId, teamId, campaignId) {
  */
 function assignVariants(recipientIds, variants) {
   const assignments = [];
-  
+
   // Create cumulative distribution for weighted random selection
   const cumulativeDistribution = [];
   let cumulative = 0;
-  
+
   for (const variant of variants) {
     cumulative += variant.percentage;
     cumulativeDistribution.push({
@@ -819,18 +819,18 @@ function assignVariants(recipientIds, variants) {
       threshold: cumulative,
     });
   }
-  
+
   // Assign each recipient to a variant
   for (const contactId of recipientIds) {
     const random = Math.random() * 100;
     const assignment = cumulativeDistribution.find((d) => random < d.threshold);
-    
+
     assignments.push({
       contactId,
       variantId: assignment.variantId,
     });
   }
-  
+
   return assignments;
 }
 
@@ -860,10 +860,12 @@ async function calculateVariantMetrics(campaignId, variantId) {
   });
 
   const total = stats._count.id;
-  const sent = statusCounts.find((s) => ['sent', 'delivered', 'read'].includes(s.status))?._count.id || 0;
-  const delivered = statusCounts.find((s) => ['delivered', 'read'].includes(s.status))?._count.id || 0;
+  const sent =
+    statusCounts.find((s) => ['sent', 'delivered', 'read'].includes(s.status))?._count.id || 0;
+  const delivered =
+    statusCounts.find((s) => ['delivered', 'read'].includes(s.status))?._count.id || 0;
   const read = statusCounts.find((s) => s.status === 'read')?._count.id || 0;
-  
+
   // Count replies
   const replied = await prisma.campaign_messages.count({
     where: {
@@ -921,7 +923,7 @@ async function selectWinningVariant(campaignId, winnerCriteria) {
   };
 
   const metricKey = criteriaMap[winnerCriteria];
-  
+
   for (const variant of variantMetrics) {
     if (parseFloat(variant.metrics[metricKey]) > parseFloat(winner.metrics[metricKey])) {
       winner = variant;

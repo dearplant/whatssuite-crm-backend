@@ -86,9 +86,7 @@ router.get('/health/detailed', async (req, res) => {
     health.components.queues = queuesHealth;
 
     // Check if any queue is unhealthy
-    const unhealthyQueues = Object.values(queuesHealth).filter(
-      (q) => q.status === 'unhealthy'
-    );
+    const unhealthyQueues = Object.values(queuesHealth).filter((q) => q.status === 'unhealthy');
     if (unhealthyQueues.length > 0) {
       allHealthy = false;
     }

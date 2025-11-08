@@ -1,11 +1,8 @@
+import prisma from '../config/database.js';
+
 /**
- * Refresh Token Model - In-memory implementation
- * Note: This should be replaced with a proper database table
+ * Refresh Token Model - Prisma implementation
  */
-
-// In-memory storage for refresh tokens
-const tokens = new Map();
-
 class RefreshTokenModel {
   /**
    * Create a new refresh token
@@ -13,16 +10,14 @@ class RefreshTokenModel {
    * @returns {Promise<Object>} Created token
    */
   async create(data) {
-    const token = {
-      id: data.id,
-      userId: data.userId,
-      token: data.token,
-      expiresAt: data.expiresAt,
-      createdAt: new Date(),
-    };
-    
-    tokens.set(data.id, token);
-    return token;
+    return await prisma.refresh_tokens.create({
+      data: {
+        id: data.id,
+        user_id: data.userId,
+        token: data.token,
+        expires_at: data.expiresAt,
+      },
+    });
   }
 
   /**
@@ -31,21 +26,61 @@ class RefreshTokenModel {
    * @returns {Promise<Object|null>} Token or null
    */
   async findById(id) {
-    return tokens.get(id) || null;
+    const token = await prisma.refresh_tokens.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!token) return null;
+
+    return {
+      id: token.id,
+      userId: token.user_id,
+      token: token.token,
+      expiresAt: token.expires_at,
+      createdAt: token.created_at,
+      user: token.user
+        ? {
+            id: token.user.id,
+            email: token.user.email,
+            firstName: token.user.first_name,
+            lastName: token.user.last_name,
+            isActive: token.user.is_active,
+          }
+        : null,
+    };
   }
 
   /**
    * Find token by token string
    * @param {string} tokenString - Token string
-   * @returns {Promise<Object|null>} Token or null
+   * @returns {Promise<Object|null>} Token or null with user
    */
   async findByToken(tokenString) {
-    for (const token of tokens.values()) {
-      if (token.token === tokenString) {
-        return token;
-      }
-    }
-    return null;
+    const token = await prisma.refresh_tokens.findFirst({
+      where: { token: tokenString },
+      include: { user: true },
+    });
+
+    if (!token) return null;
+
+    return {
+      id: token.id,
+      userId: token.user_id,
+      token: token.token,
+      expiresAt: token.expires_at,
+      createdAt: token.created_at,
+      revokedAt: null, // Add if you have this field
+      user: token.user
+        ? {
+            id: token.user.id,
+            email: token.user.email,
+            firstName: token.user.first_name,
+            lastName: token.user.last_name,
+            isActive: token.user.is_active,
+          }
+        : null,
+    };
   }
 
   /**
@@ -54,7 +89,20 @@ class RefreshTokenModel {
    * @returns {Promise<void>}
    */
   async delete(id) {
-    tokens.delete(id);
+    await prisma.refresh_tokens.delete({
+      where: { id },
+    });
+  }
+
+  /**
+   * Revoke token by token string
+   * @param {string} tokenString - Token string
+   * @returns {Promise<void>}
+   */
+  async revoke(tokenString) {
+    await prisma.refresh_tokens.deleteMany({
+      where: { token: tokenString },
+    });
   }
 
   /**
@@ -63,11 +111,20 @@ class RefreshTokenModel {
    * @returns {Promise<void>}
    */
   async deleteByUserId(userId) {
-    for (const [id, token] of tokens.entries()) {
-      if (token.userId === userId) {
-        tokens.delete(id);
-      }
-    }
+    await prisma.refresh_tokens.deleteMany({
+      where: { user_id: userId },
+    });
+  }
+
+  /**
+   * Revoke all tokens for a user
+   * @param {string} userId - User ID
+   * @returns {Promise<void>}
+   */
+  async revokeAllForUser(userId) {
+    await prisma.refresh_tokens.deleteMany({
+      where: { user_id: userId },
+    });
   }
 
   /**
@@ -75,17 +132,15 @@ class RefreshTokenModel {
    * @returns {Promise<number>} Number of deleted tokens
    */
   async deleteExpired() {
-    const now = new Date();
-    let count = 0;
-    
-    for (const [id, token] of tokens.entries()) {
-      if (token.expiresAt < now) {
-        tokens.delete(id);
-        count++;
-      }
-    }
-    
-    return count;
+    const result = await prisma.refresh_tokens.deleteMany({
+      where: {
+        expires_at: {
+          lt: new Date(),
+        },
+      },
+    });
+
+    return result.count;
   }
 }
 

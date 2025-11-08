@@ -83,12 +83,9 @@ export const validateGetMessages = (req, res, next) => {
     direction: Joi.string().valid('Inbound', 'Outbound').optional().messages({
       'any.only': 'Direction must be either Inbound or Outbound',
     }),
-    type: Joi.string()
-      .valid('Text', 'Image', 'Video', 'Audio', 'Document')
-      .optional()
-      .messages({
-        'any.only': 'Type must be one of: Text, Image, Video, Audio, Document',
-      }),
+    type: Joi.string().valid('Text', 'Image', 'Video', 'Audio', 'Document').optional().messages({
+      'any.only': 'Type must be one of: Text, Image, Video, Audio, Document',
+    }),
     status: Joi.string()
       .valid('Queued', 'Sent', 'Delivered', 'Read', 'Failed')
       .optional()

@@ -63,7 +63,10 @@ export const getMessagesSchema = Joi.object({
   endDate: Joi.date().iso().optional(),
   limit: Joi.number().integer().min(1).max(100).default(50).optional(),
   offset: Joi.number().integer().min(0).default(0).optional(),
-  sortBy: Joi.string().valid('createdAt', 'sentAt', 'deliveredAt', 'readAt').default('createdAt').optional(),
+  sortBy: Joi.string()
+    .valid('createdAt', 'sentAt', 'deliveredAt', 'readAt')
+    .default('createdAt')
+    .optional(),
   sortOrder: Joi.string().valid('asc', 'desc').default('desc').optional(),
 });
 

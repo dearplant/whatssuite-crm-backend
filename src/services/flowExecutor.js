@@ -31,7 +31,12 @@ const nodeHandlers = {
 /**
  * Start a new flow execution
  */
-export async function startFlowExecution(flowId, contactId, triggerData = {}, conversationId = null) {
+export async function startFlowExecution(
+  flowId,
+  contactId,
+  triggerData = {},
+  conversationId = null
+) {
   try {
     // Get flow details
     const flow = await prisma.flows.findUnique({
@@ -58,6 +63,7 @@ export async function startFlowExecution(flowId, contactId, triggerData = {}, co
         variables: {
           ...flow.variables,
           trigger: triggerData,
+          executionPath: [], // Track nodes visited for analytics
         },
         started_at: new Date(),
         last_activity_at: new Date(),
@@ -141,11 +147,16 @@ export async function processFlowExecution(executionId) {
       nodeType: nextNode.type,
     });
 
-    // Update current node
+    // Update current node and track in execution path
+    const currentPath = execution.variables?.executionPath || [];
     await prisma.flow_executions.update({
       where: { id: executionId },
       data: {
         current_node_id: nextNode.id,
+        variables: {
+          ...execution.variables,
+          executionPath: [...currentPath, nextNode.id],
+        },
         last_activity_at: new Date(),
       },
     });
@@ -274,7 +285,7 @@ async function handleWaitNode(node, execution, contact, flow) {
   // Support both 'data' and 'config' for backwards compatibility
   const nodeData = node.data || node.config || {};
   const { duration, unit } = nodeData;
-  
+
   // Calculate delay in milliseconds
   let delayMs = 0;
   switch (unit) {
@@ -302,13 +313,16 @@ async function handleSendMessageNode(node, execution, contact, flow) {
   // Support both 'data' and 'config' for backwards compatibility
   const nodeData = node.data || node.config || {};
   const { message, messageType = 'text', mediaUrl } = nodeData;
-  
+
   // Replace variables in message
   const processedMessage = replaceVariables(message, execution.variables, contact);
 
   // Send message (skip actual sending in test mode)
   if (execution.variables.testMode) {
-    logger.debug(`Send message node executed (test mode)`, { nodeId: node.id, message: processedMessage });
+    logger.debug(`Send message node executed (test mode)`, {
+      nodeId: node.id,
+      message: processedMessage,
+    });
     return { variables: { lastMessageId: 'test-message-id' } };
   }
 
@@ -329,10 +343,12 @@ async function handleConditionNode(node, execution, contact, flow) {
   // Support both 'data' and 'config' for backwards compatibility
   const nodeData = node.data || node.config || {};
   const { conditions, operator = 'AND' } = nodeData;
-  
+
   // Evaluate conditions
-  const results = conditions.map((condition) => evaluateCondition(condition, execution.variables, contact));
-  
+  const results = conditions.map((condition) =>
+    evaluateCondition(condition, execution.variables, contact)
+  );
+
   let conditionMet = false;
   if (operator === 'AND') {
     conditionMet = results.every((r) => r);
@@ -341,11 +357,11 @@ async function handleConditionNode(node, execution, contact, flow) {
   }
 
   logger.debug(`Condition node executed`, { nodeId: node.id, conditionMet });
-  
+
   // Find the appropriate edge based on condition result
   const edges = flow.edges || [];
   const outgoingEdges = edges.filter((edge) => edge.source === node.id);
-  
+
   // Look for edge with matching condition
   const nextEdge = outgoingEdges.find((edge) => {
     if (conditionMet && edge.label === 'true') return true;
@@ -365,7 +381,7 @@ async function handleAddTagNode(node, execution, contact, flow) {
   // Support both 'data' and 'config' for backwards compatibility
   const nodeData = node.data || node.config || {};
   const { tags } = nodeData;
-  
+
   if (tags && tags.length > 0) {
     // Add tags to contact
     for (const tagName of tags) {
@@ -381,7 +397,7 @@ async function handleRemoveTagNode(node, execution, contact, flow) {
   // Support both 'data' and 'config' for backwards compatibility
   const nodeData = node.data || node.config || {};
   const { tags } = nodeData;
-  
+
   if (tags && tags.length > 0) {
     // Remove tags from contact
     for (const tagName of tags) {
@@ -397,13 +413,13 @@ async function handleUpdateFieldNode(node, execution, contact, flow) {
   // Support both 'data' and 'config' for backwards compatibility
   const nodeData = node.data || node.config || {};
   const { field, value } = nodeData;
-  
+
   // Process value with variables
   const processedValue = replaceVariables(value, execution.variables, contact);
-  
+
   // Update contact field
   const updateData = {};
-  
+
   // Handle custom fields
   if (field.startsWith('custom_')) {
     const customFieldName = field.replace('custom_', '');
@@ -429,10 +445,12 @@ async function handleHttpRequestNode(node, execution, contact, flow) {
   // Support both 'data' and 'config' for backwards compatibility
   const nodeData = node.data || node.config || {};
   const { url, method = 'GET', headers = {}, body } = nodeData;
-  
+
   // Replace variables in URL and body
   const processedUrl = replaceVariables(url, execution.variables, contact);
-  const processedBody = body ? replaceVariables(JSON.stringify(body), execution.variables, contact) : null;
+  const processedBody = body
+    ? replaceVariables(JSON.stringify(body), execution.variables, contact)
+    : null;
 
   try {
     const response = await fetch(processedUrl, {
@@ -447,20 +465,24 @@ async function handleHttpRequestNode(node, execution, contact, flow) {
 
     const responseData = await response.json();
 
-    logger.debug(`HTTP request node executed`, { nodeId: node.id, url: processedUrl, status: response.status });
-    return { 
-      variables: { 
+    logger.debug(`HTTP request node executed`, {
+      nodeId: node.id,
+      url: processedUrl,
+      status: response.status,
+    });
+    return {
+      variables: {
         httpResponse: responseData,
         httpStatus: response.status,
-      } 
+      },
     };
   } catch (error) {
     logger.error(`HTTP request node failed`, { nodeId: node.id, error: error.message });
-    return { 
-      variables: { 
+    return {
+      variables: {
         httpError: error.message,
         httpStatus: 0,
-      } 
+      },
     };
   }
 }
@@ -497,25 +519,25 @@ async function handleEndNode(node, execution, contact, flow) {
 
 function replaceVariables(text, variables, contact) {
   if (!text) return text;
-  
+
   let result = text;
-  
+
   // Replace contact variables
   result = result.replace(/\{\{contact\.(\w+)\}\}/g, (match, field) => {
     return contact[field] || contact.custom_fields?.[field] || match;
   });
-  
+
   // Replace execution variables
   result = result.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
     return variables[varName] !== undefined ? variables[varName] : match;
   });
-  
+
   return result;
 }
 
 function evaluateCondition(condition, variables, contact) {
   const { field, operator, value } = condition;
-  
+
   // Get field value
   let fieldValue;
   if (field.startsWith('contact.')) {
@@ -524,7 +546,7 @@ function evaluateCondition(condition, variables, contact) {
   } else {
     fieldValue = variables[field];
   }
-  
+
   // Evaluate based on operator
   switch (operator) {
     case 'equals':

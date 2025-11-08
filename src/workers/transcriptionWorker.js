@@ -15,7 +15,9 @@ const processTranscription = async (job) => {
   const { userId, messageId, audioUrl, options = {} } = job.data;
 
   try {
-    logger.info(`[TranscriptionWorker] Processing transcription job ${job.id} for message ${messageId}`);
+    logger.info(
+      `[TranscriptionWorker] Processing transcription job ${job.id} for message ${messageId}`
+    );
 
     // Perform transcription
     const transcription = await transcriptionService.transcribe(
@@ -40,7 +42,7 @@ const processTranscription = async (job) => {
     // If chatbot integration is enabled, trigger chatbot response
     if (options.triggerChatbot) {
       logger.info(`[TranscriptionWorker] Triggering chatbot for transcribed message ${messageId}`);
-      
+
       // Add chatbot job to queue
       await aiQueue.add(
         'chatbot-response',

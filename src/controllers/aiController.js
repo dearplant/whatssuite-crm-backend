@@ -85,7 +85,7 @@ export const getProvider = async (req, res, next) => {
     logger.info(`Fetching AI provider ${id} for user ${userId}`);
 
     const provider = await aiManager.getProviderConfig(userId, null);
-    
+
     // Find the specific provider by ID
     const providers = await aiManager.listProviders(userId);
     const targetProvider = providers.find((p) => p.id === id);
@@ -162,11 +162,11 @@ export const updateProvider = async (req, res, next) => {
     // Otherwise, just update the config/status
     const prisma = (await import('../config/database.js')).default;
     const updateData = {};
-    
+
     if (modelConfig !== undefined) {
       updateData.modelConfig = modelConfig;
     }
-    
+
     if (isActive !== undefined) {
       updateData.isActive = isActive;
     }
@@ -282,7 +282,7 @@ export const testProvider = async (req, res, next) => {
     });
   } catch (error) {
     logger.error(`Error testing AI provider: ${error.message}`);
-    
+
     // Return a more user-friendly error for test failures
     res.status(400).json({
       success: false,

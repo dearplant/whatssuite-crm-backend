@@ -95,6 +95,7 @@ async function initializeClient(accountId, userId) {
       }),
       puppeteer: {
         headless: true,
+        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -403,19 +404,27 @@ async function getMediaUrl(msg) {
 /**
  * Connect WhatsApp account
  */
-async function connectWhatsAppAccount(userId, accountData) {
+async function connectWhatsAppAccount(userId, teamId, accountData) {
   try {
     logger.info(`Connecting WhatsApp account for user ${userId}`);
 
     // Create WhatsApp account record
+    const accountId = crypto.randomUUID();
     const account = await prisma.whatsapp_accounts.create({
       data: {
-        userId,
-        phoneNumber: accountData.phoneNumber || 'pending',
-        displayName: accountData.displayName || 'WhatsApp Account',
-        connectionStatus: 'Connecting',
-        healthStatus: 'Healthy',
-        isActive: true,
+        id: accountId,
+        user_id: userId,
+        team_id: teamId,
+        name: accountData.displayName || 'WhatsApp Account',
+        phone: accountData.phoneNumber || 'pending',
+        type: 'business',
+        status: 'disconnected',
+        health_score: 100,
+        daily_message_limit: 1000,
+        messages_sent_today: 0,
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
     });
 
@@ -588,24 +597,21 @@ async function getAccountHealth(accountId) {
 async function getUserWhatsAppAccounts(userId) {
   try {
     const accounts = await prisma.whatsapp_accounts.findMany({
-      where: { userId },
+      where: { user_id: userId },
       select: {
         id: true,
-        phoneNumber: true,
-        displayName: true,
-        profilePicture: true,
-        connectionStatus: true,
-        healthStatus: true,
-        messagesSentToday: true,
-        messagesReceivedToday: true,
-        dailyLimit: true,
-        lastConnectedAt: true,
-        lastDisconnectedAt: true,
-        isActive: true,
-        createdAt: true,
+        phone: true,
+        name: true,
+        status: true,
+        health_score: true,
+        messages_sent_today: true,
+        daily_message_limit: true,
+        last_connected_at: true,
+        is_active: true,
+        created_at: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        created_at: 'desc',
       },
     });
 
@@ -637,7 +643,7 @@ function isAccountConnected(accountId) {
 async function restoreActiveConnections() {
   try {
     logger.info('Restoring active WhatsApp connections...');
-    
+
     // TODO: Fix field name mismatches between code and database schema
     // The database uses snake_case (status, is_active) but code expects camelCase
     // Skipping restoration until schema is aligned

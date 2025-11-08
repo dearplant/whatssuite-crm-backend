@@ -22,20 +22,10 @@ router.post(
 );
 
 // Get all flows
-router.get(
-  '/',
-  authenticate,
-  authorize('flows:read'),
-  flowController.getFlows
-);
+router.get('/', authenticate, authorize('flows:read'), flowController.getFlows);
 
 // Get a single flow by ID
-router.get(
-  '/:id',
-  authenticate,
-  authorize('flows:read'),
-  flowController.getFlowById
-);
+router.get('/:id', authenticate, authorize('flows:read'), flowController.getFlowById);
 
 // Update a flow
 router.put(
@@ -47,20 +37,10 @@ router.put(
 );
 
 // Delete a flow
-router.delete(
-  '/:id',
-  authenticate,
-  authorize('flows:delete'),
-  flowController.deleteFlow
-);
+router.delete('/:id', authenticate, authorize('flows:delete'), flowController.deleteFlow);
 
 // Activate a flow
-router.post(
-  '/:id/activate',
-  authenticate,
-  authorize('flows:update'),
-  flowController.activateFlow
-);
+router.post('/:id/activate', authenticate, authorize('flows:update'), flowController.activateFlow);
 
 // Deactivate a flow
 router.post(
@@ -71,20 +51,10 @@ router.post(
 );
 
 // Get flow statistics
-router.get(
-  '/:id/stats',
-  authenticate,
-  authorize('flows:read'),
-  flowController.getFlowStats
-);
+router.get('/:id/stats', authenticate, authorize('flows:read'), flowController.getFlowStats);
 
 // Test a flow (dry run)
-router.post(
-  '/:id/test',
-  authenticate,
-  authorize('flows:update'),
-  flowController.testFlow
-);
+router.post('/:id/test', authenticate, authorize('flows:update'), flowController.testFlow);
 
 // Get flow executions
 router.get(
@@ -103,11 +73,6 @@ router.get(
 );
 
 // Manually trigger a flow
-router.post(
-  '/:id/trigger',
-  authenticate,
-  authorize('flows:update'),
-  flowController.triggerFlow
-);
+router.post('/:id/trigger', authenticate, authorize('flows:update'), flowController.triggerFlow);
 
 export default router;

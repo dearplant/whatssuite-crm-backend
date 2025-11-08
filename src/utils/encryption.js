@@ -33,11 +33,7 @@ export function encrypt(text) {
  * @returns {string} - Decrypted plain text
  */
 export function decrypt(encrypted, iv, authTag) {
-  const decipher = crypto.createDecipheriv(
-    ALGORITHM,
-    ENCRYPTION_KEY,
-    Buffer.from(iv, 'hex')
-  );
+  const decipher = crypto.createDecipheriv(ALGORITHM, ENCRYPTION_KEY, Buffer.from(iv, 'hex'));
 
   decipher.setAuthTag(Buffer.from(authTag, 'hex'));
 
@@ -50,20 +46,24 @@ export function decrypt(encrypted, iv, authTag) {
 /**
  * Encrypt credentials for storage
  * @param {Object} credentials - Credentials object to encrypt
- * @returns {Object} - Encrypted credentials object
+ * @returns {string} - JSON string of encrypted credentials object
  */
 export function encryptCredentials(credentials) {
   const jsonString = JSON.stringify(credentials);
-  return encrypt(jsonString);
+  const encryptedObject = encrypt(jsonString);
+  // Return as JSON string for database storage
+  return JSON.stringify(encryptedObject);
 }
 
 /**
  * Decrypt credentials from storage
- * @param {Object} encryptedData - Object containing encrypted, iv, and authTag
+ * @param {string|Object} encryptedData - JSON string or object containing encrypted, iv, and authTag
  * @returns {Object} - Decrypted credentials object
  */
 export function decryptCredentials(encryptedData) {
-  const { encrypted, iv, authTag } = encryptedData;
+  // Handle both string (from database) and object formats
+  const data = typeof encryptedData === 'string' ? JSON.parse(encryptedData) : encryptedData;
+  const { encrypted, iv, authTag } = data;
   const decrypted = decrypt(encrypted, iv, authTag);
   return JSON.parse(decrypted);
 }

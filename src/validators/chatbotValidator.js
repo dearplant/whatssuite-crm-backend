@@ -38,8 +38,12 @@ const createChatbotSchema = Joi.object({
   triggers: Joi.object({
     keywords: Joi.array().items(Joi.string()).default([]),
     tags: Joi.array().items(Joi.string()).default([]),
-    timeBasedStart: Joi.string().pattern(/^([01]\d|2[0-3]):([0-5]\d)$/).allow(null),
-    timeBasedEnd: Joi.string().pattern(/^([01]\d|2[0-3]):([0-5]\d)$/).allow(null),
+    timeBasedStart: Joi.string()
+      .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
+      .allow(null),
+    timeBasedEnd: Joi.string()
+      .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
+      .allow(null),
     autoReply: Joi.boolean().default(false),
   }).default({}),
   conversationTimeout: Joi.number().integer().min(1).max(1440).default(60).messages({
@@ -80,8 +84,12 @@ const updateChatbotSchema = Joi.object({
   triggers: Joi.object({
     keywords: Joi.array().items(Joi.string()),
     tags: Joi.array().items(Joi.string()),
-    timeBasedStart: Joi.string().pattern(/^([01]\d|2[0-3]):([0-5]\d)$/).allow(null),
-    timeBasedEnd: Joi.string().pattern(/^([01]\d|2[0-3]):([0-5]\d)$/).allow(null),
+    timeBasedStart: Joi.string()
+      .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
+      .allow(null),
+    timeBasedEnd: Joi.string()
+      .pattern(/^([01]\d|2[0-3]):([0-5]\d)$/)
+      .allow(null),
     autoReply: Joi.boolean(),
   }),
   conversationTimeout: Joi.number().integer().min(1).max(1440).messages({
@@ -126,9 +134,4 @@ const getChatbotsQuerySchema = Joi.object({
   }),
 });
 
-export {
-  createChatbotSchema,
-  updateChatbotSchema,
-  testChatbotSchema,
-  getChatbotsQuerySchema,
-};
+export { createChatbotSchema, updateChatbotSchema, testChatbotSchema, getChatbotsQuerySchema };

@@ -31,14 +31,16 @@ export const createCampaignSchema = Joi.object({
       'any.only': 'Message type must be one of: text, template, image, video, document',
     }),
 
-  messageContent: Joi.string().when('messageType', {
-    is: Joi.string().valid('text', 'image', 'video', 'document'),
-    then: Joi.string().required().max(4096),
-    otherwise: Joi.string().allow(null, '').optional(),
-  }).messages({
-    'string.empty': 'Message content is required for this message type',
-    'string.max': 'Message content must not exceed 4096 characters',
-  }),
+  messageContent: Joi.string()
+    .when('messageType', {
+      is: Joi.string().valid('text', 'image', 'video', 'document'),
+      then: Joi.string().required().max(4096),
+      otherwise: Joi.string().allow(null, '').optional(),
+    })
+    .messages({
+      'string.empty': 'Message content is required for this message type',
+      'string.max': 'Message content must not exceed 4096 characters',
+    }),
 
   templateVariables: Joi.object().when('messageType', {
     is: 'template',
@@ -46,12 +48,9 @@ export const createCampaignSchema = Joi.object({
     otherwise: Joi.forbidden(),
   }),
 
-  audienceType: Joi.string()
-    .valid('all', 'segment', 'custom', 'tags')
-    .required()
-    .messages({
-      'any.only': 'Audience type must be one of: all, segment, custom, tags',
-    }),
+  audienceType: Joi.string().valid('all', 'segment', 'custom', 'tags').required().messages({
+    'any.only': 'Audience type must be one of: all, segment, custom, tags',
+  }),
 
   audienceConfig: Joi.object({
     segmentId: Joi.string().uuid().when('...audienceType', {
@@ -72,20 +71,19 @@ export const createCampaignSchema = Joi.object({
     excludeContactIds: Joi.array().items(Joi.string().uuid()).optional(),
   }).required(),
 
-  scheduleType: Joi.string()
-    .valid('now', 'scheduled', 'recurring')
-    .default('now')
-    .messages({
-      'any.only': 'Schedule type must be one of: now, scheduled, recurring',
-    }),
-
-  scheduledAt: Joi.date().when('scheduleType', {
-    is: 'scheduled',
-    then: Joi.date().greater('now').required(),
-    otherwise: Joi.forbidden(),
-  }).messages({
-    'date.greater': 'Scheduled time must be in the future',
+  scheduleType: Joi.string().valid('now', 'scheduled', 'recurring').default('now').messages({
+    'any.only': 'Schedule type must be one of: now, scheduled, recurring',
   }),
+
+  scheduledAt: Joi.date()
+    .when('scheduleType', {
+      is: 'scheduled',
+      then: Joi.date().greater('now').required(),
+      otherwise: Joi.forbidden(),
+    })
+    .messages({
+      'date.greater': 'Scheduled time must be in the future',
+    }),
 
   recurringConfig: Joi.object({
     frequency: Joi.string().valid('daily', 'weekly', 'monthly').required(),
@@ -115,12 +113,9 @@ export const updateCampaignSchema = Joi.object({
   throttleConfig: Joi.object({
     messagesPerMinute: Joi.number().integer().min(1).max(100),
   }).optional(),
-  status: Joi.string()
-    .valid('draft', 'scheduled', 'paused')
-    .optional()
-    .messages({
-      'any.only': 'Status can only be updated to: draft, scheduled, paused',
-    }),
+  status: Joi.string().valid('draft', 'scheduled', 'paused').optional().messages({
+    'any.only': 'Status can only be updated to: draft, scheduled, paused',
+  }),
 }).min(1);
 
 /**
@@ -157,9 +152,7 @@ export const campaignIdSchema = Joi.object({
 export const listRecipientsSchema = Joi.object({
   page: Joi.number().integer().min(1).default(1),
   limit: Joi.number().integer().min(1).max(100).default(50),
-  status: Joi.string()
-    .valid('pending', 'sent', 'delivered', 'read', 'failed')
-    .optional(),
+  status: Joi.string().valid('pending', 'sent', 'delivered', 'read', 'failed').optional(),
   sortBy: Joi.string()
     .valid('created_at', 'sent_at', 'delivered_at', 'read_at', 'status')
     .default('created_at'),
@@ -213,12 +206,9 @@ export const createABTestSchema = Joi.object({
       'array.max': 'Maximum 5 variants allowed for A/B testing',
     }),
 
-  audienceType: Joi.string()
-    .valid('all', 'segment', 'custom', 'tags')
-    .required()
-    .messages({
-      'any.only': 'Audience type must be one of: all, segment, custom, tags',
-    }),
+  audienceType: Joi.string().valid('all', 'segment', 'custom', 'tags').required().messages({
+    'any.only': 'Audience type must be one of: all, segment, custom, tags',
+  }),
 
   audienceConfig: Joi.object({
     segmentId: Joi.string().uuid().when('...audienceType', {
@@ -239,20 +229,19 @@ export const createABTestSchema = Joi.object({
     excludeContactIds: Joi.array().items(Joi.string().uuid()).optional(),
   }).required(),
 
-  scheduleType: Joi.string()
-    .valid('now', 'scheduled')
-    .default('now')
-    .messages({
-      'any.only': 'Schedule type must be one of: now, scheduled',
-    }),
-
-  scheduledAt: Joi.date().when('scheduleType', {
-    is: 'scheduled',
-    then: Joi.date().greater('now').required(),
-    otherwise: Joi.forbidden(),
-  }).messages({
-    'date.greater': 'Scheduled time must be in the future',
+  scheduleType: Joi.string().valid('now', 'scheduled').default('now').messages({
+    'any.only': 'Schedule type must be one of: now, scheduled',
   }),
+
+  scheduledAt: Joi.date()
+    .when('scheduleType', {
+      is: 'scheduled',
+      then: Joi.date().greater('now').required(),
+      otherwise: Joi.forbidden(),
+    })
+    .messages({
+      'date.greater': 'Scheduled time must be in the future',
+    }),
 
   throttleConfig: Joi.object({
     messagesPerMinute: Joi.number().integer().min(1).max(100).default(10),

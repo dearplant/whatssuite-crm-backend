@@ -7,23 +7,23 @@ import whatsappAccountModel from './whatsappAccount.js';
 
 class WhatsAppAccountWrapper {
   async findById(id) {
-    return whatsappAccountModel.findWhatsAppAccountById(id);
+    return whatsappAccountModel.findById(id);
   }
 
   async incrementMessagesSent(id) {
-    return whatsappAccountModel.incrementMessageCounter(id, 'Outbound');
+    return whatsappAccountModel.incrementMessagesSent(id);
   }
 
   async incrementMessagesReceived(id) {
-    return whatsappAccountModel.incrementMessageCounter(id, 'Inbound');
+    return whatsappAccountModel.incrementMessagesReceived(id);
   }
 
   async updateConnectionStatus(id, status, additionalData = {}) {
-    return whatsappAccountModel.updateConnectionStatus(id, status, additionalData);
+    return whatsappAccountModel.updateStatus(id, status, additionalData);
   }
 
   async update(id, data) {
-    return whatsappAccountModel.updateWhatsAppAccount(id, data);
+    return whatsappAccountModel.update(id, data);
   }
 }
 

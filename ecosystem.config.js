@@ -10,15 +10,15 @@ module.exports = {
       exec_mode: 'cluster',
       env: {
         NODE_ENV: 'production',
-        PORT: 5000,
+        PORT: 4500,
       },
       env_production: {
         NODE_ENV: 'production',
-        PORT: 5000,
+        PORT: 4500,
       },
       env_staging: {
         NODE_ENV: 'staging',
-        PORT: 5000,
+        PORT: 4500,
       },
       // Logging
       error_file: './logs/pm2-error.log',

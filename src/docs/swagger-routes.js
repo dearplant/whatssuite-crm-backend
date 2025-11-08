@@ -170,27 +170,76 @@
  *           schema:
  *             type: object
  *             required:
- *               - phone_number
+ *               - whatsappAccountId
+ *               - phone
+ *               - name
  *             properties:
- *               phone_number:
+ *               whatsappAccountId:
  *                 type: string
+ *                 format: uuid
+ *                 example: '123e4567-e89b-12d3-a456-426614174000'
+ *                 description: WhatsApp account ID (UUID)
+ *               phone:
+ *                 type: string
+ *                 pattern: '^\+[1-9]\d{1,14}$'
  *                 example: '+1234567890'
+ *                 description: Phone number in E.164 format
  *               name:
  *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
  *                 example: 'Jane Smith'
  *               email:
  *                 type: string
+ *                 format: email
  *                 example: 'jane@example.com'
+ *               company:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: 'Acme Corp'
+ *               jobTitle:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: 'CEO'
+ *               address:
+ *                 type: string
+ *                 maxLength: 255
+ *                 example: '123 Main St'
+ *               city:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: 'New York'
+ *               state:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: 'NY'
+ *               country:
+ *                 type: string
+ *                 maxLength: 100
+ *                 example: 'USA'
+ *               postalCode:
+ *                 type: string
+ *                 maxLength: 20
+ *                 example: '10001'
  *               tags:
  *                 type: array
  *                 items:
  *                   type: string
  *                 example: ['customer', 'vip']
- *               custom_fields:
+ *               customFields:
  *                 type: object
  *                 example:
- *                   company: 'Acme Corp'
- *                   position: 'CEO'
+ *                   industry: 'Technology'
+ *                   leadSource: 'Website'
+ *               notes:
+ *                 type: string
+ *                 example: 'Important client'
+ *               isBlocked:
+ *                 type: boolean
+ *                 default: false
+ *               isPinned:
+ *                 type: boolean
+ *                 default: false
  *     responses:
  *       201:
  *         description: Contact created successfully
@@ -805,7 +854,6 @@
  */
 
 export default {};
-
 
 /**
  * @swagger
@@ -1600,4 +1648,556 @@ export default {};
  *     responses:
  *       200:
  *         description: Flow test result
+ */
+
+/**
+ * @swagger
+ * tags:
+ *   - name: Analytics
+ *     description: Flow analytics and performance metrics
+ */
+
+/**
+ * @swagger
+ * /api/v1/analytics/flows/dashboard:
+ *   get:
+ *     summary: Get flow performance dashboard data
+ *     description: Returns comprehensive dashboard data including most used flows, slowest nodes, and overall statistics
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     mostUsedFlows:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           flowId:
+ *                             type: string
+ *                           flowName:
+ *                             type: string
+ *                           isActive:
+ *                             type: boolean
+ *                           triggerType:
+ *                             type: string
+ *                           totalExecutions:
+ *                             type: integer
+ *                     slowestNodes:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           flowId:
+ *                             type: string
+ *                           flowName:
+ *                             type: string
+ *                           nodeId:
+ *                             type: string
+ *                           nodeType:
+ *                             type: string
+ *                           nodeName:
+ *                             type: string
+ *                           executionCount:
+ *                             type: integer
+ *                           avgExecutionTime:
+ *                             type: integer
+ *                     overallStats:
+ *                       type: object
+ *                       properties:
+ *                         totalFlows:
+ *                           type: integer
+ *                         activeFlows:
+ *                           type: integer
+ *                         totalExecutions:
+ *                           type: integer
+ *                         recentExecutions:
+ *                           type: integer
+ *                         statusCounts:
+ *                           type: object
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+
+/**
+ * @swagger
+ * /api/v1/analytics/flows/stats:
+ *   get:
+ *     summary: Get overall flow statistics
+ *     description: Returns team-wide flow statistics including counts and status breakdown
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Statistics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     totalFlows:
+ *                       type: integer
+ *                       example: 25
+ *                     activeFlows:
+ *                       type: integer
+ *                       example: 18
+ *                     totalExecutions:
+ *                       type: integer
+ *                       example: 15000
+ *                     recentExecutions:
+ *                       type: integer
+ *                       example: 450
+ *                       description: Executions in last 24 hours
+ *                     statusCounts:
+ *                       type: object
+ *                       properties:
+ *                         completed:
+ *                           type: integer
+ *                         failed:
+ *                           type: integer
+ *                         running:
+ *                           type: integer
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/v1/analytics/flows/most-used:
+ *   get:
+ *     summary: Get most used flows
+ *     description: Returns flows sorted by execution count
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of flows to return
+ *     responses:
+ *       200:
+ *         description: Most used flows retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       flowId:
+ *                         type: string
+ *                         example: 'flow_123abc'
+ *                       flowName:
+ *                         type: string
+ *                         example: 'Welcome Flow'
+ *                       isActive:
+ *                         type: boolean
+ *                         example: true
+ *                       triggerType:
+ *                         type: string
+ *                         example: 'message_received'
+ *                       totalExecutions:
+ *                         type: integer
+ *                         example: 1500
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/v1/analytics/flows/slowest-nodes:
+ *   get:
+ *     summary: Get slowest nodes across all flows
+ *     description: Returns nodes with highest average execution time for bottleneck identification
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of nodes to return
+ *     responses:
+ *       200:
+ *         description: Slowest nodes retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       flowId:
+ *                         type: string
+ *                         example: 'flow_123abc'
+ *                       flowName:
+ *                         type: string
+ *                         example: 'Order Processing'
+ *                       nodeId:
+ *                         type: string
+ *                         example: 'node-5'
+ *                       nodeType:
+ *                         type: string
+ *                         example: 'http_request'
+ *                       nodeName:
+ *                         type: string
+ *                         example: 'Check Inventory'
+ *                       executionCount:
+ *                         type: integer
+ *                         example: 500
+ *                       successCount:
+ *                         type: integer
+ *                         example: 495
+ *                       failureCount:
+ *                         type: integer
+ *                         example: 5
+ *                       successRate:
+ *                         type: number
+ *                         example: 99.0
+ *                       avgExecutionTime:
+ *                         type: integer
+ *                         example: 25000
+ *                         description: Average execution time in milliseconds
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/v1/analytics/flows/{flowId}:
+ *   get:
+ *     summary: Get analytics for a specific flow
+ *     description: Returns detailed performance metrics for a single flow including node-level statistics
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: flowId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Flow ID
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter executions from this date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter executions until this date
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 100
+ *         description: Maximum number of executions to analyze
+ *     responses:
+ *       200:
+ *         description: Flow analytics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     flowId:
+ *                       type: string
+ *                       example: 'flow_123abc'
+ *                     flowName:
+ *                       type: string
+ *                       example: 'Welcome Flow'
+ *                     isActive:
+ *                       type: boolean
+ *                       example: true
+ *                     totalExecutions:
+ *                       type: integer
+ *                       example: 150
+ *                     completedExecutions:
+ *                       type: integer
+ *                       example: 140
+ *                     failedExecutions:
+ *                       type: integer
+ *                       example: 8
+ *                     runningExecutions:
+ *                       type: integer
+ *                       example: 2
+ *                     completionRate:
+ *                       type: number
+ *                       example: 93.33
+ *                       description: Percentage of successful executions
+ *                     avgExecutionTime:
+ *                       type: integer
+ *                       example: 45000
+ *                       description: Average execution time in milliseconds
+ *                     nodeMetrics:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           nodeId:
+ *                             type: string
+ *                           nodeType:
+ *                             type: string
+ *                           nodeName:
+ *                             type: string
+ *                           executionCount:
+ *                             type: integer
+ *                           successCount:
+ *                             type: integer
+ *                           failureCount:
+ *                             type: integer
+ *                           successRate:
+ *                             type: number
+ *                           avgExecutionTime:
+ *                             type: integer
+ *                     bottlenecks:
+ *                       type: array
+ *                       description: Top 3 slowest nodes
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           nodeId:
+ *                             type: string
+ *                           nodeType:
+ *                             type: string
+ *                           avgExecutionTime:
+ *                             type: integer
+ *                     timestamp:
+ *                       type: string
+ *                       format: date-time
+ *       404:
+ *         description: Flow not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /api/v1/analytics/flows:
+ *   get:
+ *     summary: Get analytics for all flows
+ *     description: Returns analytics for all flows in the team with filtering and sorting options
+ *     tags: [Analytics]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter executions from this date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Filter executions until this date
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           default: totalExecutions
+ *           enum: [totalExecutions, completionRate, avgExecutionTime, failedExecutions]
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           default: desc
+ *           enum: [asc, desc]
+ *         description: Sort order
+ *     responses:
+ *       200:
+ *         description: All flows analytics retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       flowId:
+ *                         type: string
+ *                       flowName:
+ *                         type: string
+ *                       isActive:
+ *                         type: boolean
+ *                       triggerType:
+ *                         type: string
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                       totalExecutions:
+ *                         type: integer
+ *                       completedExecutions:
+ *                         type: integer
+ *                       failedExecutions:
+ *                         type: integer
+ *                       runningExecutions:
+ *                         type: integer
+ *                       completionRate:
+ *                         type: number
+ *                       avgExecutionTime:
+ *                         type: integer
+ *                       nodeMetrics:
+ *                         type: array
+ *                       bottlenecks:
+ *                         type: array
+ *                       timestamp:
+ *                         type: string
+ *                         format: date-time
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * tags:
+ *   - name: E-commerce
+ *     description: E-commerce integration (Shopify, WooCommerce)
+ */
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/integrations:
+ *   get:
+ *     summary: List e-commerce integrations
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Integrations retrieved
+ *   post:
+ *     summary: Create e-commerce integration
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - provider
+ *               - shop
+ *               - accessToken
+ *             properties:
+ *               provider:
+ *                 type: string
+ *                 enum: [Shopify, WooCommerce]
+ *               shop:
+ *                 type: string
+ *                 example: mystore.myshopify.com
+ *               accessToken:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Integration created
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/orders:
+ *   get:
+ *     summary: List e-commerce orders
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [Pending, Processing, Completed, Cancelled, Refunded]
+ *     responses:
+ *       200:
+ *         description: Orders retrieved
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/abandoned-carts:
+ *   get:
+ *     summary: List abandoned carts
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [Abandoned, Recovered, Completed, Expired]
+ *     responses:
+ *       200:
+ *         description: Abandoned carts retrieved
  */

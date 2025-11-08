@@ -63,9 +63,10 @@ export async function uploadToS3(file, folder = 'messages') {
     await s3Client.send(command);
 
     // Generate URL
-    const url = awsConfig.s3.cloudFront.enabled && awsConfig.s3.cloudFront.domain
-      ? `https://${awsConfig.s3.cloudFront.domain}/${key}`
-      : `https://${awsConfig.s3.bucket}.s3.${awsConfig.s3.region}.amazonaws.com/${key}`;
+    const url =
+      awsConfig.s3.cloudFront.enabled && awsConfig.s3.cloudFront.domain
+        ? `https://${awsConfig.s3.cloudFront.domain}/${key}`
+        : `https://${awsConfig.s3.bucket}.s3.${awsConfig.s3.region}.amazonaws.com/${key}`;
 
     logger.info('File uploaded to S3', {
       key,

@@ -20,7 +20,10 @@ export const initializeSocketIO = (httpServer) => {
   // Create Socket.io server with CORS configuration
   io = new Server(httpServer, {
     cors: {
-      origin: process.env.CORS_ORIGIN?.split(',') || ['http://localhost:3000', 'http://localhost:3001'],
+      origin: process.env.CORS_ORIGIN?.split(',') || [
+        'http://localhost:3000',
+        'http://localhost:3001',
+      ],
       credentials: true,
       methods: ['GET', 'POST'],
     },
@@ -47,7 +50,9 @@ export const initializeSocketIO = (httpServer) => {
   // Authentication middleware
   io.use(async (socket, next) => {
     try {
-      const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.replace('Bearer ', '');
+      const token =
+        socket.handshake.auth.token ||
+        socket.handshake.headers.authorization?.replace('Bearer ', '');
 
       if (!token) {
         return next(new Error('Authentication token required'));
@@ -145,7 +150,9 @@ export const initializeSocketIO = (httpServer) => {
 
     // Disconnect handler
     socket.on('disconnect', (reason) => {
-      logger.info(`Client disconnected: ${socket.id} (User: ${socket.userEmail}, Reason: ${reason})`);
+      logger.info(
+        `Client disconnected: ${socket.id} (User: ${socket.userEmail}, Reason: ${reason})`
+      );
     });
 
     // Error handler

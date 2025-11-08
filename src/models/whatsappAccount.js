@@ -171,6 +171,57 @@ class WhatsAppAccountModel {
     });
     return dbAccounts.map((acc) => this.mapToModel(acc));
   }
+
+  /**
+   * Increment messages sent counter
+   */
+  async incrementMessagesSent(id) {
+    const dbAccount = await prisma.whatsapp_accounts.update({
+      where: { id },
+      data: {
+        messages_sent_today: {
+          increment: 1,
+        },
+        updated_at: new Date(),
+      },
+    });
+    return this.mapToModel(dbAccount);
+  }
+
+  /**
+   * Increment messages received counter
+   */
+  async incrementMessagesReceived(id) {
+    // Note: messages_received_today field doesn't exist in schema
+    // This is a placeholder - you may need to add this field to schema
+    const dbAccount = await prisma.whatsapp_accounts.findUnique({
+      where: { id },
+    });
+    return this.mapToModel(dbAccount);
+  }
+
+  /**
+   * Update connection status
+   */
+  async updateStatus(id, status, additionalData = {}) {
+    const updateData = {
+      status,
+      updated_at: new Date(),
+    };
+
+    if (status === 'connected') {
+      updateData.last_connected_at = new Date();
+    }
+
+    // Merge any additional data
+    Object.assign(updateData, additionalData);
+
+    const dbAccount = await prisma.whatsapp_accounts.update({
+      where: { id },
+      data: updateData,
+    });
+    return this.mapToModel(dbAccount);
+  }
 }
 
 export default new WhatsAppAccountModel();

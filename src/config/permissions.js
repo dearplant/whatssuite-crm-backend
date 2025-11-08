@@ -107,6 +107,7 @@ export const PERMISSIONS = {
   'payments:manage-plans': ['Owner'],
 
   // Analytics & Reports
+  'analytics:read': ['Owner', 'Admin', 'Manager'], // General analytics read permission
   'analytics:read-overview': ['Owner', 'Admin', 'Manager'],
   'analytics:read-messages': ['Owner', 'Admin', 'Manager'],
   'analytics:read-campaigns': ['Owner', 'Admin', 'Manager'],
@@ -115,6 +116,13 @@ export const PERMISSIONS = {
   'analytics:read-chatbots': ['Owner', 'Admin', 'Manager'],
   'analytics:export-reports': ['Owner', 'Admin', 'Manager'],
   'analytics:schedule-reports': ['Owner', 'Admin', 'Manager'],
+
+  // E-commerce Integration
+  'ecommerce:create': ['Owner', 'Admin'],
+  'ecommerce:read': ['Owner', 'Admin', 'Manager'],
+  'ecommerce:update': ['Owner', 'Admin'],
+  'ecommerce:delete': ['Owner'],
+  'ecommerce:sync': ['Owner', 'Admin'],
 
   // Team Management
   'team:invite': ['Owner', 'Admin'],

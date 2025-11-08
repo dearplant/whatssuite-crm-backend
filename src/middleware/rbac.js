@@ -1,6 +1,6 @@
 /**
  * Role-Based Access Control (RBAC) Middleware
- * 
+ *
  * This middleware checks if the authenticated user has the required permissions
  * to access a specific resource or perform an action.
  */
@@ -54,7 +54,7 @@ export function authorize(requiredPermission, options = {}) {
 
       // Validate all permissions are valid
       if (!allowWildcard) {
-        const invalidPermissions = permissions.filter(p => !isValidPermission(p));
+        const invalidPermissions = permissions.filter((p) => !isValidPermission(p));
         if (invalidPermissions.length > 0) {
           logger.error(`Invalid permissions specified: ${invalidPermissions.join(', ')}`);
           return res.status(500).json({
@@ -70,8 +70,8 @@ export function authorize(requiredPermission, options = {}) {
       if (allowWildcard) {
         // Use wildcard matching
         hasAccess = requireAll
-          ? permissions.every(p => matchesPermissionPattern(role, p))
-          : permissions.some(p => matchesPermissionPattern(role, p));
+          ? permissions.every((p) => matchesPermissionPattern(role, p))
+          : permissions.some((p) => matchesPermissionPattern(role, p));
       } else {
         // Use exact permission matching
         hasAccess = requireAll
@@ -81,7 +81,7 @@ export function authorize(requiredPermission, options = {}) {
 
       if (!hasAccess) {
         logger.warn(
-          `Authorization failed: User ${req.user.id} (${role}) attempted to access ${req.method} ${req.path} without required permissions: ${permissions.join(', ')}`,
+          `Authorization failed: User ${req.user.id} (${role}) attempted to access ${req.method} ${req.path} without required permissions: ${permissions.join(', ')}`
         );
 
         return res.status(403).json({
@@ -93,7 +93,7 @@ export function authorize(requiredPermission, options = {}) {
 
       // Log successful authorization for audit
       logger.debug(
-        `Authorization successful: User ${req.user.id} (${role}) accessed ${req.method} ${req.path}`,
+        `Authorization successful: User ${req.user.id} (${role}) accessed ${req.method} ${req.path}`
       );
 
       next();
@@ -148,7 +148,7 @@ export function requireOwner(req, res, next) {
 
   if (req.user.role !== 'Owner') {
     logger.warn(
-      `Owner access denied: User ${req.user.id} (${req.user.role}) attempted to access ${req.method} ${req.path}`,
+      `Owner access denied: User ${req.user.id} (${req.user.role}) attempted to access ${req.method} ${req.path}`
     );
 
     return res.status(403).json({
@@ -174,7 +174,7 @@ export function requireAdmin(req, res, next) {
 
   if (!['Owner', 'Admin'].includes(req.user.role)) {
     logger.warn(
-      `Admin access denied: User ${req.user.id} (${req.user.role}) attempted to access ${req.method} ${req.path}`,
+      `Admin access denied: User ${req.user.id} (${req.user.role}) attempted to access ${req.method} ${req.path}`
     );
 
     return res.status(403).json({
@@ -213,7 +213,7 @@ export function requireOwnershipOrAdmin(userIdParam = 'id') {
     }
 
     logger.warn(
-      `Ownership check failed: User ${req.user.id} attempted to access resource belonging to ${resourceUserId}`,
+      `Ownership check failed: User ${req.user.id} attempted to access resource belonging to ${resourceUserId}`
     );
 
     return res.status(403).json({
@@ -226,7 +226,7 @@ export function requireOwnershipOrAdmin(userIdParam = 'id') {
 /**
  * Helper function to check permissions programmatically (not middleware)
  * Useful for conditional logic within controllers
- * 
+ *
  * @param {object} user - User object with role property
  * @param {string|string[]} permission - Permission(s) to check
  * @returns {boolean} True if user has permission
@@ -243,7 +243,7 @@ export function checkPermission(user, permission) {
 /**
  * Helper function to get user's permissions (not middleware)
  * Useful for returning permissions in API responses
- * 
+ *
  * @param {object} user - User object with role property
  * @returns {string[]} Array of permission strings
  */

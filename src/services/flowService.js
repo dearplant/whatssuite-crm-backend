@@ -32,8 +32,8 @@ async function createFlow(userId, teamId, flowData) {
         edges: flowData.edges || [],
         variables: flowData.variables || {},
         is_active: flowData.is_active || false,
-        version: 1
-      }
+        version: 1,
+      },
     });
 
     logger.info(`Flow created: ${flow.id} by user ${userId}`);
@@ -51,7 +51,7 @@ async function getFlows(teamId, filters = {}) {
   try {
     const where = {
       team_id: teamId,
-      deleted_at: null
+      deleted_at: null,
     };
 
     // Apply filters
@@ -66,7 +66,7 @@ async function getFlows(teamId, filters = {}) {
     if (filters.search) {
       where.OR = [
         { name: { contains: filters.search, mode: 'insensitive' } },
-        { description: { contains: filters.search, mode: 'insensitive' } }
+        { description: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
 
@@ -78,18 +78,18 @@ async function getFlows(teamId, filters = {}) {
             id: true,
             email: true,
             first_name: true,
-            last_name: true
-          }
+            last_name: true,
+          },
         },
         _count: {
           select: {
-            flow_executions: true
-          }
-        }
+            flow_executions: true,
+          },
+        },
       },
       orderBy: {
-        created_at: 'desc'
-      }
+        created_at: 'desc',
+      },
     });
 
     return flows;
@@ -108,7 +108,7 @@ async function getFlowById(flowId, teamId) {
       where: {
         id: flowId,
         team_id: teamId,
-        deleted_at: null
+        deleted_at: null,
       },
       include: {
         users: {
@@ -116,15 +116,15 @@ async function getFlowById(flowId, teamId) {
             id: true,
             email: true,
             first_name: true,
-            last_name: true
-          }
+            last_name: true,
+          },
         },
         _count: {
           select: {
-            flow_executions: true
-          }
-        }
-      }
+            flow_executions: true,
+          },
+        },
+      },
     });
 
     if (!flow) {
@@ -148,8 +148,8 @@ async function updateFlow(flowId, teamId, userId, updateData) {
       where: {
         id: flowId,
         team_id: teamId,
-        deleted_at: null
-      }
+        deleted_at: null,
+      },
     });
 
     if (!existingFlow) {
@@ -163,7 +163,7 @@ async function updateFlow(flowId, teamId, userId, updateData) {
         triggerType: updateData.triggerType || existingFlow.triggerType,
         trigger_config: updateData.trigger_config || existingFlow.trigger_config,
         nodes: updateData.nodes || existingFlow.nodes,
-        edges: updateData.edges || existingFlow.edges
+        edges: updateData.edges || existingFlow.edges,
       };
 
       const validation = validateFlow(flowToValidate);
@@ -174,13 +174,14 @@ async function updateFlow(flowId, teamId, userId, updateData) {
 
     // Prepare update data
     const dataToUpdate = {
-      updated_at: new Date()
+      updated_at: new Date(),
     };
 
     if (updateData.name !== undefined) dataToUpdate.name = updateData.name;
     if (updateData.description !== undefined) dataToUpdate.description = updateData.description;
     if (updateData.triggerType !== undefined) dataToUpdate.triggerType = updateData.triggerType;
-    if (updateData.trigger_config !== undefined) dataToUpdate.trigger_config = updateData.trigger_config;
+    if (updateData.trigger_config !== undefined)
+      dataToUpdate.trigger_config = updateData.trigger_config;
     if (updateData.nodes !== undefined) dataToUpdate.nodes = updateData.nodes;
     if (updateData.edges !== undefined) dataToUpdate.edges = updateData.edges;
     if (updateData.variables !== undefined) dataToUpdate.variables = updateData.variables;
@@ -201,10 +202,10 @@ async function updateFlow(flowId, teamId, userId, updateData) {
             id: true,
             email: true,
             first_name: true,
-            last_name: true
-          }
-        }
-      }
+            last_name: true,
+          },
+        },
+      },
     });
 
     logger.info(`Flow updated: ${flowId} by user ${userId}`);
@@ -225,8 +226,8 @@ async function deleteFlow(flowId, teamId, userId) {
       where: {
         id: flowId,
         team_id: teamId,
-        deleted_at: null
-      }
+        deleted_at: null,
+      },
     });
 
     if (!existingFlow) {
@@ -243,8 +244,8 @@ async function deleteFlow(flowId, teamId, userId) {
       where: { id: flowId },
       data: {
         deleted_at: new Date(),
-        is_active: false
-      }
+        is_active: false,
+      },
     });
 
     logger.info(`Flow deleted: ${flowId} by user ${userId}`);
@@ -268,19 +269,21 @@ async function activateFlow(flowId, teamId, userId) {
       triggerType: flow.triggerType,
       trigger_config: flow.trigger_config,
       nodes: flow.nodes,
-      edges: flow.edges
+      edges: flow.edges,
     });
 
     if (!validation.valid) {
-      throw new Error(`Cannot activate flow with validation errors: ${validation.errors.join(', ')}`);
+      throw new Error(
+        `Cannot activate flow with validation errors: ${validation.errors.join(', ')}`
+      );
     }
 
     const updatedFlow = await prisma.flows.update({
       where: { id: flowId },
       data: {
         is_active: true,
-        updated_at: new Date()
-      }
+        updated_at: new Date(),
+      },
     });
 
     // Register trigger
@@ -302,13 +305,13 @@ async function deactivateFlow(flowId, teamId, userId) {
     await getFlowById(flowId, teamId); // Check if exists
 
     const flow = await getFlowById(flowId, teamId);
-    
+
     const updatedFlow = await prisma.flows.update({
       where: { id: flowId },
       data: {
         is_active: false,
-        updated_at: new Date()
-      }
+        updated_at: new Date(),
+      },
     });
 
     // Unregister trigger
@@ -332,26 +335,26 @@ async function getFlowStats(flowId, teamId) {
     const stats = await prisma.flow_executions.groupBy({
       by: ['status'],
       where: {
-        flow_id: flowId
+        flow_id: flowId,
       },
       _count: {
-        status: true
-      }
+        status: true,
+      },
     });
 
     const totalExecutions = await prisma.flow_executions.count({
-      where: { flow_id: flowId }
+      where: { flow_id: flowId },
     });
 
     const avgExecutionTime = await prisma.flow_executions.aggregate({
       where: {
         flow_id: flowId,
         status: 'completed',
-        completed_at: { not: null }
+        completed_at: { not: null },
       },
       _avg: {
         // Calculate average duration in seconds
-      }
+      },
     });
 
     return {
@@ -360,7 +363,7 @@ async function getFlowStats(flowId, teamId) {
         acc[stat.status] = stat._count.status;
         return acc;
       }, {}),
-      avgExecutionTime: avgExecutionTime._avg || 0
+      avgExecutionTime: avgExecutionTime._avg || 0,
     };
   } catch (error) {
     logger.error('Error fetching flow stats:', error);
@@ -376,5 +379,5 @@ export {
   deleteFlow,
   activateFlow,
   deactivateFlow,
-  getFlowStats
+  getFlowStats,
 };

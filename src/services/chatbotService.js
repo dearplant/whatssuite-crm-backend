@@ -241,8 +241,10 @@ const updateChatbot = async (userId, chatbotId, data) => {
     if (data.welcomeMessage !== undefined) updateData.welcome_message = data.welcomeMessage;
     if (data.fallbackMessage !== undefined) updateData.fallback_message = data.fallbackMessage;
     if (data.triggers !== undefined) updateData.triggers = data.triggers;
-    if (data.conversationTimeout !== undefined) updateData.conversation_timeout = data.conversationTimeout;
-    if (data.maxConversationTurns !== undefined) updateData.max_conversation_turns = data.maxConversationTurns;
+    if (data.conversationTimeout !== undefined)
+      updateData.conversation_timeout = data.conversationTimeout;
+    if (data.maxConversationTurns !== undefined)
+      updateData.max_conversation_turns = data.maxConversationTurns;
     if (data.contextWindow !== undefined) updateData.context_window = data.contextWindow;
 
     // Verify AI provider if being updated
@@ -351,7 +353,9 @@ const toggleChatbotStatus = async (userId, chatbotId, isActive) => {
       },
     });
 
-    logger.info(`Chatbot ${isActive ? 'activated' : 'deactivated'}: ${chatbotId} by user ${userId}`);
+    logger.info(
+      `Chatbot ${isActive ? 'activated' : 'deactivated'}: ${chatbotId} by user ${userId}`
+    );
     return chatbot;
   } catch (error) {
     logger.error('Error toggling chatbot status:', error);

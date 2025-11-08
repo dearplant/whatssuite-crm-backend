@@ -27,7 +27,17 @@ class MessageService {
    * @returns {Promise<Object>} Created message
    */
   async sendMessage(data) {
-    const { userId, whatsappAccountId, to, type, content, mediaUrl, mediaFile, scheduledFor, campaignId } = data;
+    const {
+      userId,
+      whatsappAccountId,
+      to,
+      type,
+      content,
+      mediaUrl,
+      mediaFile,
+      scheduledFor,
+      campaignId,
+    } = data;
 
     try {
       // Validate WhatsApp account

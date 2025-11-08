@@ -138,12 +138,7 @@ router.post(
  * Get all segments
  * Requires: contacts:read permission
  */
-router.get(
-  '/segments',
-  authenticate,
-  authorize('contacts:read'),
-  segmentController.getSegments
-);
+router.get('/segments', authenticate, authorize('contacts:read'), segmentController.getSegments);
 
 /**
  * GET /api/v1/contacts/segments/:id
@@ -212,12 +207,7 @@ router.post(
  * Get contact details
  * Requires: contacts:read permission
  */
-router.get(
-  '/:id',
-  authenticate,
-  authorize('contacts:read'),
-  contactController.getContactById
-);
+router.get('/:id', authenticate, authorize('contacts:read'), contactController.getContactById);
 
 /**
  * PUT /api/v1/contacts/:id
@@ -237,11 +227,6 @@ router.put(
  * Delete contact (soft delete)
  * Requires: contacts:delete permission
  */
-router.delete(
-  '/:id',
-  authenticate,
-  authorize('contacts:delete'),
-  contactController.deleteContact
-);
+router.delete('/:id', authenticate, authorize('contacts:delete'), contactController.deleteContact);
 
 export default router;

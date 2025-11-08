@@ -117,6 +117,9 @@ import contactRoutes from './routes/contactRoutes.js';
 import campaignRoutes from './routes/campaignRoutes.js';
 import flowRoutes from './routes/flowRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import cronRoutes from './routes/cronRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+import ecommerceRoutes from './routes/ecommerceRoutes.js';
 
 // API root endpoint
 app.get('/api/v1', (req, res) => {
@@ -153,10 +156,11 @@ app.use('/api/v1/contacts', contactRoutes);
 app.use('/api/v1/campaigns', campaignRoutes);
 app.use('/api/v1/flows', flowRoutes);
 app.use('/api/v1/ai', aiRoutes);
+app.use('/api/v1/cron', cronRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/ecommerce', ecommerceRoutes);
 // Additional routes will be added here as they are implemented:
-// app.use('/api/v1/ecommerce', ecommerceRoutes);
 // app.use('/api/v1/payments', paymentRoutes);
-// app.use('/api/v1/analytics', analyticsRoutes);
 // app.use('/api/v1/team', teamRoutes);
 // app.use('/api/v1/webhooks', webhookRoutes);
 

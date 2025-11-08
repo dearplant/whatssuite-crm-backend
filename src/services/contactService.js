@@ -55,9 +55,7 @@ class ContactService {
   async createContact(data, userId) {
     try {
       // Verify WhatsApp account belongs to user
-      const whatsappAccount = await WhatsAppAccountModel.findById(
-        data.whatsappAccountId
-      );
+      const whatsappAccount = await WhatsAppAccountModel.findById(data.whatsappAccountId);
 
       if (!whatsappAccount) {
         throw new Error('WhatsApp account not found');
@@ -68,10 +66,7 @@ class ContactService {
       }
 
       // Check for duplicate contact
-      const existingContact = await ContactModel.findByPhone(
-        whatsappAccount.teamId,
-        data.phone
-      );
+      const existingContact = await ContactModel.findByPhone(whatsappAccount.teamId, data.phone);
 
       if (existingContact) {
         throw new Error('Contact with this phone number already exists');
@@ -96,7 +91,7 @@ class ContactService {
       // Handle tags if provided
       if (data.tags && Array.isArray(data.tags) && data.tags.length > 0) {
         const tagIds = [];
-        
+
         for (const tagName of data.tags) {
           // Find or create tag
           let tag = await prisma.tags.findFirst({

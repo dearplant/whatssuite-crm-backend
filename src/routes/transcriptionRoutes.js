@@ -28,22 +28,14 @@ router.post(
  * List transcriptions for authenticated user
  * Requires: ai:read permission
  */
-router.get(
-  '/transcriptions',
-  authorize('ai:read'),
-  transcriptionController.listTranscriptions
-);
+router.get('/transcriptions', authorize('ai:read'), transcriptionController.listTranscriptions);
 
 /**
  * GET /api/v1/ai/transcriptions/:id
  * Get transcription by ID
  * Requires: ai:read permission
  */
-router.get(
-  '/transcriptions/:id',
-  authorize('ai:read'),
-  transcriptionController.getTranscription
-);
+router.get('/transcriptions/:id', authorize('ai:read'), transcriptionController.getTranscription);
 
 /**
  * GET /api/v1/ai/transcriptions/message/:messageId
@@ -61,10 +53,6 @@ router.get(
  * Get available transcription providers
  * Requires: ai:read permission
  */
-router.get(
-  '/transcription/providers',
-  authorize('ai:read'),
-  transcriptionController.getProviders
-);
+router.get('/transcription/providers', authorize('ai:read'), transcriptionController.getProviders);
 
 export default router;
