@@ -24,4 +24,10 @@ router.post(
   paymentController.cancelSubscription
 );
 
+// Payment routes
+router.post('/checkout', authorize('payments:create'), paymentController.createPayment);
+router.get('/', authorize('payments:read'), paymentController.listPayments);
+router.get('/:id', authorize('payments:read'), paymentController.getPayment);
+router.post('/:id/refund', authorize('payments:update'), paymentController.refundPayment);
+
 export default router;

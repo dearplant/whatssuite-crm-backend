@@ -297,3 +297,235 @@ export async function cancelSubscription(req, res) {
     });
   }
 }
+
+/**
+ * Create payment
+ * POST /api/v1/payments/checkout
+ */
+export async function createPayment(req, res) {
+  try {
+    const teamId = req.user.team_id;
+    const { gateway_id, amount, currency = 'USD', metadata } = req.body;
+
+    // Get gateway
+    const gateway = await prisma.payment_gateways.findFirst({
+      where: {
+        id: gateway_id,
+        team_id: teamId,
+        is_active: true,
+      },
+    });
+
+    if (!gateway) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment gateway not found',
+      });
+    }
+
+    // Create payment via provider
+    const provider = paymentGatewayManager.getProvider(
+      gateway.provider,
+      gateway.credentials_encrypted
+    );
+
+    const paymentData = await provider.createPayment({
+      amount,
+      currency,
+      metadata,
+    });
+
+    // Create payment in database
+    const payment = await prisma.payments.create({
+      data: {
+        id: crypto.randomUUID(),
+        team_id: teamId,
+        gateway_id: gateway.id,
+        external_payment_id: paymentData.external_id,
+        amount,
+        currency,
+        status: paymentData.status,
+        metadata,
+      },
+    });
+
+    logger.info('Payment created', {
+      paymentId: payment.id,
+      amount,
+      teamId,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Payment created successfully',
+      data: payment,
+    });
+  } catch (error) {
+    logger.error('Error creating payment:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create payment',
+    });
+  }
+}
+
+/**
+ * List payments
+ * GET /api/v1/payments
+ */
+export async function listPayments(req, res) {
+  try {
+    const teamId = req.user.team_id;
+    const { status, page = 1, limit = 20 } = req.query;
+
+    const where = { team_id: teamId };
+    if (status) where.status = status;
+
+    const payments = await prisma.payments.findMany({
+      where,
+      include: {
+        payment_gateways: {
+          select: {
+            id: true,
+            provider: true,
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+      skip: (page - 1) * limit,
+      take: parseInt(limit),
+    });
+
+    const total = await prisma.payments.count({ where });
+
+    return res.json({
+      success: true,
+      data: payments,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    logger.error('Error listing payments:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to list payments',
+    });
+  }
+}
+
+/**
+ * Get payment by ID
+ * GET /api/v1/payments/:id
+ */
+export async function getPayment(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.team_id;
+
+    const payment = await prisma.payments.findFirst({
+      where: {
+        id,
+        team_id: teamId,
+      },
+      include: {
+        payment_gateways: {
+          select: {
+            id: true,
+            provider: true,
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found',
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: payment,
+    });
+  } catch (error) {
+    logger.error('Error getting payment:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to get payment',
+    });
+  }
+}
+
+/**
+ * Refund payment
+ * POST /api/v1/payments/:id/refund
+ */
+export async function refundPayment(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.team_id;
+    const { amount } = req.body;
+
+    // Get payment
+    const payment = await prisma.payments.findFirst({
+      where: {
+        id,
+        team_id: teamId,
+      },
+      include: {
+        payment_gateways: true,
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Payment not found',
+      });
+    }
+
+    if (payment.status !== 'Completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only completed payments can be refunded',
+      });
+    }
+
+    // Refund via provider
+    const provider = paymentGatewayManager.getProvider(
+      payment.payment_gateways.provider,
+      payment.payment_gateways.credentials_encrypted
+    );
+
+    await provider.refundPayment(payment.external_payment_id, amount);
+
+    // Update payment status
+    const updatedPayment = await prisma.payments.update({
+      where: { id },
+      data: { status: 'Refunded' },
+    });
+
+    logger.info('Payment refunded', {
+      paymentId: id,
+      amount: amount || payment.amount,
+      teamId,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Payment refunded successfully',
+      data: updatedPayment,
+    });
+  } catch (error) {
+    logger.error('Error refunding payment:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to refund payment',
+    });
+  }
+}
