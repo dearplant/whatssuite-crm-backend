@@ -401,33 +401,82 @@ export async function shopifyOrderCreated(req, res) {
  */
 export async function shopifyCheckoutCreated(req, res) {
   try {
+    const checkoutData = req.body;
+    const shopDomain = req.headers['x-shopify-shop-domain'];
     const hmac = req.headers['x-shopify-hmac-sha256'];
-    const shop = req.headers['x-shopify-shop-domain'];
-    const rawBody = req.rawBody;
 
+    logger.info('Received Shopify checkout created webhook', {
+      checkoutId: checkoutData.id,
+      shopDomain,
+    });
+
+    // Find integration by shop domain
     const integration = await prisma.ecommerce_integrations.findFirst({
       where: {
         provider: 'Shopify',
-        store_url: shop,
+        store_url: { contains: shopDomain },
+        status: 'Active',
       },
     });
 
     if (!integration) {
+      logger.warn('No active Shopify integration found for shop', { shopDomain });
       return res.status(404).json({ error: 'Integration not found' });
     }
 
-    const isValid = ShopifyClient.verifyWebhook(rawBody, hmac, integration.webhook_secret);
+    // Verify webhook signature
+    const isValid = ShopifyClient.verifyWebhook(
+      JSON.stringify(req.body),
+      hmac,
+      integration.webhook_secret
+    );
 
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid webhook signature' });
+      logger.warn('Invalid Shopify webhook signature', { shopDomain });
+      return res.status(401).json({ error: 'Invalid signature' });
     }
 
-    await shopifyService.processCheckout(integration, req.body);
+    // Check if checkout is abandoned (not completed)
+    if (checkoutData.completed_at) {
+      logger.info('Checkout already completed, skipping abandoned cart creation', {
+        checkoutId: checkoutData.id,
+      });
+      return res.status(200).json({ message: 'Checkout completed' });
+    }
 
-    return res.status(200).json({ success: true });
+    // Create abandoned cart
+    const abandonedCartService = (await import('../services/ecommerce/abandonedCartService.js'))
+      .default;
+
+    const cartData = {
+      integrationId: integration.id,
+      teamId: integration.team_id,
+      externalCartId: checkoutData.id.toString(),
+      customerEmail: checkoutData.email,
+      customerPhone: checkoutData.phone || checkoutData.billing_address?.phone,
+      customerName: checkoutData.customer?.first_name
+        ? `${checkoutData.customer.first_name} ${checkoutData.customer.last_name || ''}`.trim()
+        : checkoutData.billing_address?.name,
+      cartUrl: checkoutData.abandoned_checkout_url || checkoutData.web_url,
+      totalAmount: parseFloat(checkoutData.total_price || 0),
+      currency: checkoutData.currency || 'USD',
+      items: checkoutData.line_items || [],
+      abandonedAt: new Date(checkoutData.created_at),
+      metadata: {
+        token: checkoutData.token,
+        cart_token: checkoutData.cart_token,
+      },
+    };
+
+    await abandonedCartService.createOrUpdateCart(cartData);
+
+    res.status(200).json({ message: 'Abandoned cart processed' });
   } catch (error) {
-    logger.error('Error processing Shopify checkout webhook:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    logger.error('Error processing Shopify checkout webhook', {
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 }
 
@@ -493,40 +542,26 @@ export async function listOrders(req, res) {
  */
 export async function listAbandonedCarts(req, res) {
   try {
+    const { integrationId, status, page, limit, sortBy, sortOrder } = req.query;
     const teamId = req.user.teamId;
-    const { page = 1, limit = 50, status = 'Abandoned' } = req.query;
 
-    const carts = await prisma.abandoned_carts.findMany({
-      where: {
-        team_id: teamId,
-        status,
-      },
-      include: {
-        integration: {
-          select: {
-            provider: true,
-            store_name: true,
-          },
-        },
-      },
-      orderBy: { abandoned_at: 'desc' },
-      skip: (page - 1) * limit,
-      take: parseInt(limit),
+    const abandonedCartService = (await import('../services/ecommerce/abandonedCartService.js'))
+      .default;
+
+    const result = await abandonedCartService.getAbandonedCarts({
+      teamId,
+      integrationId,
+      status,
+      page: parseInt(page) || 1,
+      limit: parseInt(limit) || 20,
+      sortBy,
+      sortOrder,
     });
 
-    const total = await prisma.abandoned_carts.count({
-      where: { team_id: teamId, status },
-    });
-
-    return res.json({
+    res.json({
       success: true,
-      data: carts,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      data: result.carts,
+      pagination: result.pagination,
     });
   } catch (error) {
     logger.error('Error listing abandoned carts:', error);
@@ -734,5 +769,219 @@ export async function woocommerceOrderDeleted(req, res) {
   } catch (error) {
     logger.error('Error processing WooCommerce order deletion webhook:', error);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * Get abandoned cart statistics
+ * GET /api/v1/ecommerce/abandoned-carts/statistics
+ */
+export async function getAbandonedCartStatistics(req, res) {
+  try {
+    const { integrationId, startDate, endDate } = req.query;
+    const teamId = req.user.teamId;
+
+    const abandonedCartService = (await import('../services/ecommerce/abandonedCartService.js'))
+      .default;
+
+    const statistics = await abandonedCartService.getCartStatistics(teamId, {
+      integrationId,
+      startDate,
+      endDate,
+    });
+
+    res.json({
+      success: true,
+      data: statistics,
+    });
+  } catch (error) {
+    logger.error('Error fetching abandoned cart statistics', {
+      error: error.message,
+      userId: req.user?.id,
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch statistics',
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * Get abandoned cart by ID
+ * GET /api/v1/ecommerce/abandoned-carts/:id
+ */
+export async function getAbandonedCart(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.teamId;
+
+    const abandonedCartService = (await import('../services/ecommerce/abandonedCartService.js'))
+      .default;
+
+    const cart = await abandonedCartService.getCartById(id, teamId);
+
+    res.json({
+      success: true,
+      data: cart,
+    });
+  } catch (error) {
+    logger.error('Error fetching abandoned cart', {
+      error: error.message,
+      cartId: req.params.id,
+      userId: req.user?.id,
+    });
+
+    if (error.message === 'Cart not found') {
+      return res.status(404).json({
+        success: false,
+        message: 'Abandoned cart not found',
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch abandoned cart',
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * Manually trigger recovery for an abandoned cart
+ * POST /api/v1/ecommerce/abandoned-carts/:id/recover
+ */
+export async function recoverAbandonedCart(req, res) {
+  try {
+    const { id } = req.params;
+    const teamId = req.user.teamId;
+
+    const abandonedCartService = (await import('../services/ecommerce/abandonedCartService.js'))
+      .default;
+
+    // Verify cart belongs to team
+    const cart = await abandonedCartService.getCartById(id, teamId);
+
+    if (!cart) {
+      return res.status(404).json({
+        success: false,
+        message: 'Abandoned cart not found',
+      });
+    }
+
+    // Send recovery message immediately
+    const result = await abandonedCartService.sendRecoveryMessage(id);
+
+    if (result.skipped) {
+      return res.status(400).json({
+        success: false,
+        message: `Recovery skipped: ${result.reason}`,
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Recovery message sent successfully',
+      data: result,
+    });
+  } catch (error) {
+    logger.error('Error recovering abandoned cart', {
+      error: error.message,
+      cartId: req.params.id,
+      userId: req.user?.id,
+    });
+
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send recovery message',
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * Handle WooCommerce checkout updated webhook
+ * POST /api/v1/ecommerce/webhooks/woocommerce/checkout-updated
+ */
+export async function woocommerceCheckoutUpdated(req, res) {
+  try {
+    const checkoutData = req.body;
+    const storeUrl = req.headers['x-wc-webhook-source'];
+
+    logger.info('Received WooCommerce checkout updated webhook', {
+      checkoutId: checkoutData.id,
+      storeUrl,
+    });
+
+    // Find integration by store URL
+    const integration = await prisma.ecommerce_integrations.findFirst({
+      where: {
+        provider: 'WooCommerce',
+        store_url: storeUrl,
+        status: 'Active',
+      },
+    });
+
+    if (!integration) {
+      logger.warn('No active WooCommerce integration found for store', { storeUrl });
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    // Verify webhook signature
+    const signature = req.headers['x-wc-webhook-signature'];
+    const isValid = WooCommerceClient.verifyWebhook(
+      JSON.stringify(req.body),
+      signature,
+      integration.webhook_secret
+    );
+
+    if (!isValid) {
+      logger.warn('Invalid WooCommerce webhook signature', { storeUrl });
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    // Check if checkout is abandoned (status is pending or on-hold)
+    const abandonedStatuses = ['pending', 'on-hold', 'checkout-draft'];
+    if (!abandonedStatuses.includes(checkoutData.status)) {
+      logger.info('Checkout not in abandoned status, skipping', {
+        checkoutId: checkoutData.id,
+        status: checkoutData.status,
+      });
+      return res.status(200).json({ message: 'Checkout not abandoned' });
+    }
+
+    // Create abandoned cart
+    const abandonedCartService = (await import('../services/ecommerce/abandonedCartService.js'))
+      .default;
+
+    const cartData = {
+      integrationId: integration.id,
+      teamId: integration.team_id,
+      externalCartId: checkoutData.id.toString(),
+      customerEmail: checkoutData.billing?.email,
+      customerPhone: checkoutData.billing?.phone,
+      customerName: checkoutData.billing?.first_name
+        ? `${checkoutData.billing.first_name} ${checkoutData.billing.last_name || ''}`.trim()
+        : null,
+      cartUrl: checkoutData.cart_url || `${storeUrl}/checkout/?order_id=${checkoutData.id}`,
+      totalAmount: parseFloat(checkoutData.total || 0),
+      currency: checkoutData.currency || 'USD',
+      items: checkoutData.line_items || [],
+      abandonedAt: new Date(checkoutData.date_created || checkoutData.date_modified),
+      metadata: {
+        order_key: checkoutData.order_key,
+        cart_hash: checkoutData.cart_hash,
+      },
+    };
+
+    await abandonedCartService.createOrUpdateCart(cartData);
+
+    res.status(200).json({ message: 'Abandoned cart processed' });
+  } catch (error) {
+    logger.error('Error processing WooCommerce checkout webhook', {
+      error: error.message,
+      stack: error.stack,
+    });
+    res.status(500).json({ error: 'Internal server error' });
   }
 }

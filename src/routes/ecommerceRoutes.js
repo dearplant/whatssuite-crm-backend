@@ -71,6 +71,10 @@ router.post('/webhooks/shopify/checkouts-create', ecommerceController.shopifyChe
 router.post('/webhooks/woocommerce/orders-create', ecommerceController.woocommerceOrderCreated);
 router.post('/webhooks/woocommerce/orders-updated', ecommerceController.woocommerceOrderUpdated);
 router.post('/webhooks/woocommerce/orders-deleted', ecommerceController.woocommerceOrderDeleted);
+router.post(
+  '/webhooks/woocommerce/checkout-updated',
+  ecommerceController.woocommerceCheckoutUpdated
+);
 
 // Orders
 router.get('/orders', authenticate, authorize('ecommerce:read'), ecommerceController.listOrders);
@@ -81,6 +85,27 @@ router.get(
   authenticate,
   authorize('ecommerce:read'),
   ecommerceController.listAbandonedCarts
+);
+
+router.get(
+  '/abandoned-carts/statistics',
+  authenticate,
+  authorize('ecommerce:read'),
+  ecommerceController.getAbandonedCartStatistics
+);
+
+router.get(
+  '/abandoned-carts/:id',
+  authenticate,
+  authorize('ecommerce:read'),
+  ecommerceController.getAbandonedCart
+);
+
+router.post(
+  '/abandoned-carts/:id/recover',
+  authenticate,
+  authorize('ecommerce:update'),
+  ecommerceController.recoverAbandonedCart
 );
 
 export default router;

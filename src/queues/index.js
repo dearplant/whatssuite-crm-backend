@@ -199,6 +199,20 @@ export const notificationQueue = createQueue('notifications', {
 });
 
 /**
+ * Abandoned Cart Recovery Queue
+ * Handles abandoned cart recovery messages
+ */
+export const abandonedCartQueue = createQueue('abandonedCartRecovery', {
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 60000, // 1 minute
+    },
+  },
+});
+
+/**
  * Get all queues for monitoring
  */
 export const getAllQueues = () => {
@@ -213,6 +227,7 @@ export const getAllQueues = () => {
     exportQueue,
     analyticsQueue,
     notificationQueue,
+    abandonedCartQueue,
   };
 };
 
@@ -281,6 +296,24 @@ export const getAllQueuesHealth = async () => {
   }, {});
 };
 
+/**
+ * Helper function to add a job to a queue
+ */
+export const addJob = async (queueName, data, options = {}) => {
+  const queues = getAllQueues();
+  const queue = queues[`${queueName}Queue`] || queues.messageQueue;
+
+  return await queue.add(data, options);
+};
+
+/**
+ * Helper function to get a queue by name
+ */
+export const getQueue = (queueName) => {
+  const queues = getAllQueues();
+  return queues[`${queueName}Queue`] || queues.messageQueue;
+};
+
 export default {
   messageQueue,
   campaignQueue,
@@ -292,8 +325,11 @@ export default {
   exportQueue,
   analyticsQueue,
   notificationQueue,
+  abandonedCartQueue,
   getAllQueues,
   closeAllQueues,
   getQueueHealth,
   getAllQueuesHealth,
+  addJob,
+  getQueue,
 };

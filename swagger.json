@@ -3773,10 +3773,11 @@
         "parameters": [
           {
             "in": "query",
-            "name": "page",
+            "name": "integrationId",
             "schema": {
-              "type": "integer"
-            }
+              "type": "string"
+            },
+            "description": "Filter by integration ID"
           },
           {
             "in": "query",
@@ -3789,12 +3790,409 @@
                 "Completed",
                 "Expired"
               ]
-            }
+            },
+            "description": "Filter by cart status"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Items per page"
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "type": "string",
+              "default": "abandoned_at"
+            },
+            "description": "Sort field"
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            },
+            "description": "Sort order"
           }
         ],
         "responses": {
           "200": {
-            "description": "Abandoned carts retrieved"
+            "description": "List of abandoned carts",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string"
+                          },
+                          "external_cart_id": {
+                            "type": "string"
+                          },
+                          "customer_email": {
+                            "type": "string"
+                          },
+                          "customer_phone": {
+                            "type": "string"
+                          },
+                          "customer_name": {
+                            "type": "string"
+                          },
+                          "cart_url": {
+                            "type": "string"
+                          },
+                          "total_amount": {
+                            "type": "number"
+                          },
+                          "currency": {
+                            "type": "string"
+                          },
+                          "status": {
+                            "type": "string"
+                          },
+                          "abandoned_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "recovery_sent_at": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {
+                          "type": "integer"
+                        },
+                        "limit": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        },
+                        "totalPages": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden"
+          }
+        }
+      }
+    },
+    "/api/v1/ecommerce/abandoned-carts/statistics": {
+      "get": {
+        "summary": "Get abandoned cart statistics",
+        "tags": [
+          "E-commerce"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "integrationId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by integration ID"
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Start date for statistics"
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "End date for statistics"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "totalCarts": {
+                          "type": "integer",
+                          "example": 150
+                        },
+                        "recoveredCarts": {
+                          "type": "integer",
+                          "example": 45
+                        },
+                        "completedCarts": {
+                          "type": "integer",
+                          "example": 30
+                        },
+                        "expiredCarts": {
+                          "type": "integer",
+                          "example": 20
+                        },
+                        "abandonedCarts": {
+                          "type": "integer",
+                          "example": 55
+                        },
+                        "totalValue": {
+                          "type": "number",
+                          "example": 15000.5
+                        },
+                        "recoveredValue": {
+                          "type": "number",
+                          "example": 4500.25
+                        },
+                        "recoveryRate": {
+                          "type": "number",
+                          "example": 30
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/ecommerce/abandoned-carts/{id}": {
+      "get": {
+        "summary": "Get abandoned cart by ID",
+        "tags": [
+          "E-commerce"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Cart ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Cart details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "external_cart_id": {
+                          "type": "string"
+                        },
+                        "customer_email": {
+                          "type": "string",
+                          "example": "customer@example.com"
+                        },
+                        "customer_phone": {
+                          "type": "string",
+                          "example": "+1234567890"
+                        },
+                        "customer_name": {
+                          "type": "string",
+                          "example": "John Doe"
+                        },
+                        "cart_url": {
+                          "type": "string",
+                          "example": "https://store.com/cart/abc123"
+                        },
+                        "total_amount": {
+                          "type": "number",
+                          "example": 99.99
+                        },
+                        "currency": {
+                          "type": "string",
+                          "example": "USD"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "Abandoned"
+                        },
+                        "abandoned_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "recovery_sent_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "recovered_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Cart not found"
+          }
+        }
+      }
+    },
+    "/api/v1/ecommerce/abandoned-carts/{id}/recover": {
+      "post": {
+        "summary": "Manually trigger recovery for an abandoned cart",
+        "tags": [
+          "E-commerce"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Cart ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Recovery message sent successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean",
+                      "example": true
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Recovery message sent successfully"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "success": {
+                          "type": "boolean"
+                        },
+                        "cartId": {
+                          "type": "string"
+                        },
+                        "phoneNumber": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Recovery skipped (cart status changed, expired, etc.)"
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "404": {
+            "description": "Cart not found"
           }
         }
       }
