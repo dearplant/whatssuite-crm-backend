@@ -413,7 +413,7 @@ model teams {
   settings          Json                @default("{}")
   owner_id          String
   created_at        DateTime            @default(now())
-  updated_at        DateTime
+  updated_at        DateTime            @updatedAt
   campaigns         campaigns[]
   contacts          contacts[]
   conversations     conversations[]
@@ -475,7 +475,7 @@ model users {
   email_verified_at     DateTime?
   last_login_at         DateTime?
   created_at            DateTime                @default(now())
-  updated_at            DateTime
+  updated_at            DateTime                @updatedAt
   deleted_at            DateTime?
   ai_providers          ai_providers[]
   api_keys              api_keys[]

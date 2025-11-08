@@ -27,7 +27,14 @@ describe('Authentication API Endpoints', () => {
   beforeEach(async () => {
     // Clean up test user before each test
     try {
-      await prisma.users.deleteMany({ where: { email: 'test@example.com' } });
+      // Find user first to get their owned teams
+      const user = await prisma.users.findUnique({ where: { email: 'test@example.com' } });
+      if (user) {
+        // Delete teams owned by this user
+        await prisma.teams.deleteMany({ where: { owner_id: user.id } });
+        // Delete the user
+        await prisma.users.delete({ where: { id: user.id } });
+      }
     } catch (error) {
       // Ignore errors if user doesn't exist
     }
@@ -124,7 +131,12 @@ describe('Authentication API Endpoints', () => {
         firstName: 'John',
         lastName: 'Doe',
       });
-      testUser = response.body.data.user;
+      
+      if (!response.body.success) {
+        console.error('Registration failed:', response.body);
+      }
+      
+      testUser = response.body.data?.user;
     });
 
     test('should login with valid credentials', async () => {

@@ -15,7 +15,7 @@ const optionalAuth = async (req, res, next) => {
     }
     // No token, continue without authentication
     next();
-  } catch (error) {
+  } catch {
     // Authentication failed, continue without authentication
     next();
   }
@@ -24,6 +24,14 @@ const optionalAuth = async (req, res, next) => {
 // Shopify OAuth
 router.get('/shopify/install', optionalAuth, ecommerceController.initiateShopifyOAuth);
 router.get('/shopify/callback', ecommerceController.shopifyOAuthCallback);
+
+// WooCommerce Integration
+router.post(
+  '/integrations/woocommerce',
+  authenticate,
+  authorize('ecommerce:create'),
+  ecommerceController.createWooCommerceIntegration
+);
 
 // Integrations
 router.post(
@@ -58,6 +66,11 @@ router.post(
 router.post('/webhooks/shopify/orders-create', ecommerceController.shopifyOrderCreated);
 router.post('/webhooks/shopify/orders-fulfilled', ecommerceController.shopifyOrderCreated);
 router.post('/webhooks/shopify/checkouts-create', ecommerceController.shopifyCheckoutCreated);
+
+// WooCommerce Webhooks (no auth - verified by HMAC)
+router.post('/webhooks/woocommerce/orders-create', ecommerceController.woocommerceOrderCreated);
+router.post('/webhooks/woocommerce/orders-updated', ecommerceController.woocommerceOrderUpdated);
+router.post('/webhooks/woocommerce/orders-deleted', ecommerceController.woocommerceOrderDeleted);
 
 // Orders
 router.get('/orders', authenticate, authorize('ecommerce:read'), ecommerceController.listOrders);

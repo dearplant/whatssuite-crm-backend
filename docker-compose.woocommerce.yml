@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  woocommerce-db:
+    image: mysql:8.0
+    container_name: woocommerce-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wordpress
+      MYSQL_PASSWORD: wordpress
+    volumes:
+      - woocommerce-db-data:/var/lib/mysql
+    ports:
+      - "3307:3306"
+    networks:
+      - woocommerce-network
+
+  woocommerce-wordpress:
+    image: wordpress:latest
+    container_name: woocommerce-wordpress
+    restart: unless-stopped
+    depends_on:
+      - woocommerce-db
+    environment:
+      WORDPRESS_DB_HOST: woocommerce-db:3306
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DEBUG: 1
+    volumes:
+      - woocommerce-wordpress-data:/var/www/html
+    ports:
+      - "8081:80"
+    networks:
+      - woocommerce-network
+
+volumes:
+  woocommerce-db-data:
+  woocommerce-wordpress-data:
+
+networks:
+  woocommerce-network:
+    driver: bridge

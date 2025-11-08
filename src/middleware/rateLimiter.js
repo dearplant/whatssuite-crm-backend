@@ -43,11 +43,11 @@ export const globalLimiter = rateLimit({
 
 /**
  * Strict rate limiter for authentication endpoints
- * 5 attempts per 15 minutes per IP
+ * 5 attempts per 15 minutes per IP (disabled in test environment)
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
+  max: process.env.NODE_ENV === 'test' ? 1000 : 5, // Higher limit for tests
   skipSuccessfulRequests: true, // Don't count successful requests
   message: {
     error: 'TooManyRequests',
@@ -136,7 +136,7 @@ export function createRedisRateLimiter(options = {}) {
 export const messageLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
   max: 20, // 20 messages per minute
-  keyGenerator: (req, res) => {
+  keyGenerator: (req, _res) => {
     // Use user ID as key, or fall back to the built-in IP key generator
     if (req.user?.id) {
       return req.user.id;

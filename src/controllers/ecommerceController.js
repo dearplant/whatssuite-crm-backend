@@ -1,5 +1,7 @@
 import shopifyService from '../services/ecommerce/shopifyService.js';
 import ShopifyClient from '../services/ecommerce/shopifyClient.js';
+import woocommerceService from '../services/ecommerce/woocommerce/woocommerceService.js';
+import WooCommerceClient from '../services/ecommerce/woocommerce/woocommerceClient.js';
 import prisma from '../config/database.js';
 import logger from '../utils/logger.js';
 
@@ -89,7 +91,7 @@ export async function shopifyOAuthCallback(req, res) {
       });
     }
 
-    const [nonce, userId, teamId] = stateParts;
+    const [, userId, teamId] = stateParts;
 
     if (!userId || !teamId) {
       logger.error('Missing user/team info in state during Shopify callback');
@@ -532,5 +534,205 @@ export async function listAbandonedCarts(req, res) {
       success: false,
       message: 'Failed to list abandoned carts',
     });
+  }
+}
+
+/**
+ * Create WooCommerce integration
+ * POST /api/v1/ecommerce/integrations/woocommerce
+ */
+export async function createWooCommerceIntegration(req, res) {
+  try {
+    const { storeUrl, consumerKey, consumerSecret } = req.body;
+    const userId = req.user.id;
+    const teamId = req.user.teamId;
+
+    if (!storeUrl || !consumerKey || !consumerSecret) {
+      return res.status(400).json({
+        success: false,
+        message: 'Store URL, consumer key, and consumer secret are required',
+      });
+    }
+
+    // Validate store URL format
+    const urlPattern = /^https?:\/\/.+/;
+    if (!urlPattern.test(storeUrl)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid store URL format. Must start with http:// or https://',
+      });
+    }
+
+    const integration = await woocommerceService.createIntegration(
+      userId,
+      teamId,
+      storeUrl,
+      consumerKey,
+      consumerSecret
+    );
+
+    logger.info(`WooCommerce integration created: ${integration.id}`);
+
+    return res.status(201).json({
+      success: true,
+      message: 'WooCommerce integration created successfully',
+      data: {
+        id: integration.id,
+        provider: integration.provider,
+        store_url: integration.store_url,
+        store_name: integration.store_name,
+        status: integration.status,
+        created_at: integration.created_at,
+      },
+    });
+  } catch (error) {
+    logger.error('Error creating WooCommerce integration:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create WooCommerce integration',
+      error: error.message,
+    });
+  }
+}
+
+/**
+ * WooCommerce webhook: Order created
+ * POST /api/v1/ecommerce/webhooks/woocommerce/orders-create
+ */
+export async function woocommerceOrderCreated(req, res) {
+  try {
+    const signature = req.headers['x-wc-webhook-signature'];
+    const source = req.headers['x-wc-webhook-source'];
+    const rawBody = req.rawBody;
+
+    if (!signature || !source) {
+      return res.status(400).json({ error: 'Missing webhook headers' });
+    }
+
+    // Find integration by store URL
+    const integration = await prisma.ecommerce_integrations.findFirst({
+      where: {
+        provider: 'WooCommerce',
+        store_url: source,
+      },
+    });
+
+    if (!integration) {
+      logger.warn(`WooCommerce webhook received for unknown store: ${source}`);
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    // Verify webhook signature
+    const isValid = WooCommerceClient.verifyWebhook(rawBody, signature, integration.webhook_secret);
+
+    if (!isValid) {
+      logger.warn(`Invalid WooCommerce webhook signature for store: ${source}`);
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
+    // Process order
+    await woocommerceService.processOrder(integration, req.body);
+
+    logger.info(`Processed WooCommerce order webhook for order ${req.body.id}`);
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    logger.error('Error processing WooCommerce order webhook:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * WooCommerce webhook: Order updated
+ * POST /api/v1/ecommerce/webhooks/woocommerce/orders-updated
+ */
+export async function woocommerceOrderUpdated(req, res) {
+  try {
+    const signature = req.headers['x-wc-webhook-signature'];
+    const source = req.headers['x-wc-webhook-source'];
+    const rawBody = req.rawBody;
+
+    if (!signature || !source) {
+      return res.status(400).json({ error: 'Missing webhook headers' });
+    }
+
+    const integration = await prisma.ecommerce_integrations.findFirst({
+      where: {
+        provider: 'WooCommerce',
+        store_url: source,
+      },
+    });
+
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    const isValid = WooCommerceClient.verifyWebhook(rawBody, signature, integration.webhook_secret);
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
+    // Process order update (same as create)
+    await woocommerceService.processOrder(integration, req.body);
+
+    logger.info(`Processed WooCommerce order update webhook for order ${req.body.id}`);
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    logger.error('Error processing WooCommerce order update webhook:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+/**
+ * WooCommerce webhook: Order deleted
+ * POST /api/v1/ecommerce/webhooks/woocommerce/orders-deleted
+ */
+export async function woocommerceOrderDeleted(req, res) {
+  try {
+    const signature = req.headers['x-wc-webhook-signature'];
+    const source = req.headers['x-wc-webhook-source'];
+    const rawBody = req.rawBody;
+
+    if (!signature || !source) {
+      return res.status(400).json({ error: 'Missing webhook headers' });
+    }
+
+    const integration = await prisma.ecommerce_integrations.findFirst({
+      where: {
+        provider: 'WooCommerce',
+        store_url: source,
+      },
+    });
+
+    if (!integration) {
+      return res.status(404).json({ error: 'Integration not found' });
+    }
+
+    const isValid = WooCommerceClient.verifyWebhook(rawBody, signature, integration.webhook_secret);
+
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid webhook signature' });
+    }
+
+    // Mark order as deleted/cancelled
+    await prisma.ecommerce_orders.updateMany({
+      where: {
+        integration_id: integration.id,
+        external_order_id: req.body.id.toString(),
+      },
+      data: {
+        status: 'Cancelled',
+        updated_at: new Date(),
+      },
+    });
+
+    logger.info(`Processed WooCommerce order deletion webhook for order ${req.body.id}`);
+
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    logger.error('Error processing WooCommerce order deletion webhook:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }

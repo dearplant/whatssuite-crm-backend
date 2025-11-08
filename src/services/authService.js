@@ -160,6 +160,8 @@ class AuthService {
    * @throws {Error} If email already exists
    */
   async register(userData) {
+    const prisma = (await import('../config/database.js')).default;
+
     // Check if user already exists
     const existingUser = await userModel.findByEmail(userData.email);
     if (existingUser) {
@@ -173,7 +175,7 @@ class AuthService {
     // Generate email verification token
     const emailVerificationToken = crypto.randomBytes(32).toString('hex');
 
-    // Create user
+    // Create user first
     const user = await userModel.create({
       email: userData.email,
       password: hashedPassword,
@@ -185,6 +187,20 @@ class AuthService {
       language: userData.language || 'en',
       timezone: userData.timezone || 'UTC',
     });
+
+    // Create team for the user
+    const teamSlug = `${userData.firstName.toLowerCase()}-${userData.lastName.toLowerCase()}-team-${Date.now()}`;
+    const team = await prisma.teams.create({
+      data: {
+        id: crypto.randomUUID(),
+        name: `${userData.firstName} ${userData.lastName}'s Team`,
+        slug: teamSlug,
+        owner_id: user.id,
+      },
+    });
+
+    // Add team_id to user object for response
+    user.team_id = team.id;
 
     // Generate tokens
     const tokens = await generateTokens(user);
@@ -199,7 +215,11 @@ class AuthService {
       logger.error('Failed to queue welcome email', { error: err.message });
     });
 
-    logger.info('User registered successfully', { userId: user.id, email: user.email });
+    logger.info('User registered successfully', {
+      userId: user.id,
+      email: user.email,
+      teamId: team.id,
+    });
 
     return {
       user,
