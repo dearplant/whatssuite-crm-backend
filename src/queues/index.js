@@ -213,6 +213,20 @@ export const abandonedCartQueue = createQueue('abandonedCartRecovery', {
 });
 
 /**
+ * Order Queue
+ * Handles order automation and notifications
+ */
+export const orderQueue = createQueue('order', {
+  defaultJobOptions: {
+    attempts: 3,
+    backoff: {
+      type: 'exponential',
+      delay: 5000,
+    },
+  },
+});
+
+/**
  * Get all queues for monitoring
  */
 export const getAllQueues = () => {
@@ -228,6 +242,7 @@ export const getAllQueues = () => {
     analyticsQueue,
     notificationQueue,
     abandonedCartQueue,
+    orderQueue,
   };
 };
 
@@ -326,6 +341,7 @@ export default {
   analyticsQueue,
   notificationQueue,
   abandonedCartQueue,
+  orderQueue,
   getAllQueues,
   closeAllQueues,
   getQueueHealth,

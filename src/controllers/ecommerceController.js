@@ -325,7 +325,7 @@ export async function updateIntegration(req, res) {
   try {
     const { id } = req.params;
     const teamId = req.user.teamId;
-    const { is_active, webhook_secret, metadata } = req.body;
+    const { is_active, webhook_secret, metadata, store_name } = req.body;
 
     // Verify integration belongs to team
     const integration = await prisma.ecommerce_integrations.findFirst({
@@ -347,6 +347,7 @@ export async function updateIntegration(req, res) {
     if (typeof is_active !== 'undefined') updateData.is_active = is_active;
     if (webhook_secret) updateData.webhook_secret = webhook_secret;
     if (metadata) updateData.metadata = metadata;
+    if (store_name) updateData.store_name = store_name;
 
     const updatedIntegration = await prisma.ecommerce_integrations.update({
       where: { id },

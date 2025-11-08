@@ -12,13 +12,14 @@ class ShopifyService {
     const scopes = process.env.SHOPIFY_SCOPES || 'read_orders,write_orders,read_checkouts';
     const apiKey = process.env.SHOPIFY_API_KEY;
     const nonce = crypto.randomBytes(16).toString('hex');
-    
-    const installUrl = `https://${shop}/admin/oauth/authorize?` +
+
+    const installUrl =
+      `https://${shop}/admin/oauth/authorize?` +
       `client_id=${apiKey}&` +
       `scope=${scopes}&` +
       `redirect_uri=${redirectUri}&` +
       `state=${nonce}`;
-    
+
     return { installUrl, nonce };
   }
 
@@ -28,7 +29,8 @@ class ShopifyService {
   async exchangeToken(shop, code) {
     const apiKey = process.env.SHOPIFY_API_KEY;
     const apiSecret = process.env.SHOPIFY_API_SECRET;
-    
+
+    // eslint-disable-next-line no-undef
     const response = await fetch(`https://${shop}/admin/oauth/access_token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -38,11 +40,11 @@ class ShopifyService {
         code,
       }),
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to exchange authorization code');
     }
-    
+
     const data = await response.json();
     return data.access_token;
   }
@@ -53,9 +55,9 @@ class ShopifyService {
   async createIntegration(userId, teamId, shop, accessToken) {
     const client = new ShopifyClient(shop, accessToken);
     const shopInfo = await client.getShop();
-    
+
     const encryptedToken = encryptCredentials({ accessToken });
-    
+
     // Check if integration already exists
     const existing = await prisma.ecommerce_integrations.findFirst({
       where: {
@@ -64,7 +66,7 @@ class ShopifyService {
         store_url: shop,
       },
     });
-    
+
     const integrationData = {
       user_id: userId,
       store_name: shopInfo.name,
@@ -77,7 +79,7 @@ class ShopifyService {
         currency: shopInfo.currency,
       },
     };
-    
+
     let integration;
     if (existing) {
       // Update existing integration
@@ -102,7 +104,7 @@ class ShopifyService {
       });
       logger.info(`Created new Shopify integration: ${integration.id}`);
     }
-    
+
     // Register webhooks (non-blocking)
     try {
       await this.registerWebhooks(integration.id);
@@ -110,7 +112,7 @@ class ShopifyService {
       logger.warn(`Failed to register webhooks during installation: ${error.message}`);
       // Continue - webhooks can be registered later
     }
-    
+
     // Start initial sync (non-blocking for development apps)
     try {
       await this.syncOrders(integration.id);
@@ -119,7 +121,7 @@ class ShopifyService {
       // Continue - this is expected for development apps without approval
       // Orders will be synced via webhooks or manual sync later
     }
-    
+
     return integration;
   }
 
@@ -130,17 +132,17 @@ class ShopifyService {
     const integration = await prisma.ecommerce_integrations.findUnique({
       where: { id: integrationId },
     });
-    
+
     const credentials = decryptCredentials(integration.access_token_encrypted);
     const client = new ShopifyClient(integration.store_url, credentials.accessToken);
-    
+
     const baseUrl = process.env.APP_URL || 'http://localhost:4500';
     const webhooks = [
       { topic: 'orders/create', path: '/api/v1/ecommerce/webhooks/shopify/orders-create' },
       { topic: 'orders/fulfilled', path: '/api/v1/ecommerce/webhooks/shopify/orders-fulfilled' },
       { topic: 'checkouts/create', path: '/api/v1/ecommerce/webhooks/shopify/checkouts-create' },
     ];
-    
+
     for (const webhook of webhooks) {
       try {
         await client.registerWebhook(webhook.topic, `${baseUrl}${webhook.path}`);
@@ -158,21 +160,21 @@ class ShopifyService {
     const integration = await prisma.ecommerce_integrations.findUnique({
       where: { id: integrationId },
     });
-    
+
     const credentials = decryptCredentials(integration.access_token_encrypted);
     const client = new ShopifyClient(integration.store_url, credentials.accessToken);
-    
+
     const orders = await client.getOrders({ limit, status: 'any' });
-    
+
     for (const order of orders) {
       await this.processOrder(integration, order);
     }
-    
+
     await prisma.ecommerce_integrations.update({
       where: { id: integrationId },
       data: { last_sync_at: new Date() },
     });
-    
+
     return orders.length;
   }
 
@@ -180,12 +182,9 @@ class ShopifyService {
    * Process Shopify order
    */
   async processOrder(integration, orderData) {
-    const contact = await this.findOrCreateContact(
-      integration.team_id,
-      orderData.customer
-    );
-    
-    await prisma.ecommerce_orders.upsert({
+    const contact = await this.findOrCreateContact(integration.team_id, orderData.customer);
+
+    const order = await prisma.ecommerce_orders.upsert({
       where: {
         integration_id_external_order_id: {
           integration_id: integration.id,
@@ -218,17 +217,18 @@ class ShopifyService {
         updated_at: new Date(),
       },
     });
+
+    // Queue order automation
+    const { addJob } = await import('../../queues/index.js');
+    await addJob('order', { orderId: order.id });
   }
 
   /**
    * Process abandoned checkout
    */
   async processCheckout(integration, checkoutData) {
-    const contact = await this.findOrCreateContact(
-      integration.team_id,
-      checkoutData.customer
-    );
-    
+    const contact = await this.findOrCreateContact(integration.team_id, checkoutData.customer);
+
     await prisma.abandoned_carts.upsert({
       where: {
         integration_id_external_cart_id: {
@@ -265,17 +265,17 @@ class ShopifyService {
    */
   async findOrCreateContact(teamId, customer) {
     if (!customer || !customer.phone) return null;
-    
+
     const phone = customer.phone.replace(/\D/g, '');
     if (!phone) return null;
-    
+
     let contact = await prisma.contacts.findFirst({
       where: {
         team_id: teamId,
         phone: { contains: phone },
       },
     });
-    
+
     if (!contact) {
       contact = await prisma.contacts.create({
         data: {
@@ -289,7 +289,7 @@ class ShopifyService {
         },
       });
     }
-    
+
     return contact;
   }
 

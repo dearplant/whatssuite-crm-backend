@@ -2672,3 +2672,244 @@ export default {};
  *       401:
  *         description: Unauthorized
  */
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/orders/{id}/notify:
+ *   post:
+ *     summary: Send order notification to customer
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: Custom notification message (optional)
+ *               template:
+ *                 type: string
+ *                 enum: [pending, processing, completed, cancelled, refunded, failed]
+ *                 description: Notification template to use
+ *     responses:
+ *       200:
+ *         description: Notification sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orderId:
+ *                       type: string
+ *                     phoneNumber:
+ *                       type: string
+ *       404:
+ *         description: Order not found
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/orders:
+ *   get:
+ *     summary: List orders
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: integrationId
+ *         schema:
+ *           type: string
+ *         description: Filter by integration ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [Pending, Processing, Completed, Cancelled, Refunded, Failed]
+ *         description: Filter by order status
+ *       - in: query
+ *         name: contactId
+ *         schema:
+ *           type: string
+ *         description: Filter by contact ID
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter orders from this date
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter orders until this date
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: List of orders
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Order'
+ *                 pagination:
+ *                   $ref: '#/components/schemas/Pagination'
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+
+/**
+ * @swagger
+ * /api/v1/ecommerce/orders/{id}:
+ *   get:
+ *     summary: Get order by ID
+ *     tags: [E-commerce]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Order ID
+ *     responses:
+ *       200:
+ *         description: Order details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Order'
+ *       404:
+ *         description: Order not found
+ *       401:
+ *         $ref: '#/components/responses/Unauthorized'
+ *       403:
+ *         $ref: '#/components/responses/Forbidden'
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Order:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *         integration_id:
+ *           type: string
+ *         team_id:
+ *           type: string
+ *         contact_id:
+ *           type: string
+ *           nullable: true
+ *         external_order_id:
+ *           type: string
+ *         order_number:
+ *           type: string
+ *         customer_email:
+ *           type: string
+ *           nullable: true
+ *         customer_phone:
+ *           type: string
+ *           nullable: true
+ *         customer_name:
+ *           type: string
+ *           nullable: true
+ *         status:
+ *           type: string
+ *           enum: [Pending, Processing, Completed, Cancelled, Refunded, Failed]
+ *         total_amount:
+ *           type: number
+ *         currency:
+ *           type: string
+ *         items:
+ *           type: array
+ *           items:
+ *             type: object
+ *         shipping_address:
+ *           type: object
+ *           nullable: true
+ *         billing_address:
+ *           type: object
+ *           nullable: true
+ *         metadata:
+ *           type: object
+ *         created_at:
+ *           type: string
+ *           format: date-time
+ *         updated_at:
+ *           type: string
+ *           format: date-time
+ *         integration:
+ *           type: object
+ *           properties:
+ *             id:
+ *               type: string
+ *             provider:
+ *               type: string
+ *             store_name:
+ *               type: string
+ *         contacts:
+ *           type: object
+ *           nullable: true
+ *           properties:
+ *             id:
+ *               type: string
+ *             first_name:
+ *               type: string
+ *             last_name:
+ *               type: string
+ *             email:
+ *               type: string
+ *             phone:
+ *               type: string
+ */

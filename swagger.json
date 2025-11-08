@@ -329,6 +329,119 @@
             "example": "2024-01-01T00:00:00.000Z"
           }
         }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "integration_id": {
+            "type": "string"
+          },
+          "team_id": {
+            "type": "string"
+          },
+          "contact_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "external_order_id": {
+            "type": "string"
+          },
+          "order_number": {
+            "type": "string"
+          },
+          "customer_email": {
+            "type": "string",
+            "nullable": true
+          },
+          "customer_phone": {
+            "type": "string",
+            "nullable": true
+          },
+          "customer_name": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Pending",
+              "Processing",
+              "Completed",
+              "Cancelled",
+              "Refunded",
+              "Failed"
+            ]
+          },
+          "total_amount": {
+            "type": "number"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "shipping_address": {
+            "type": "object",
+            "nullable": true
+          },
+          "billing_address": {
+            "type": "object",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "integration": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "provider": {
+                "type": "string"
+              },
+              "store_name": {
+                "type": "string"
+              }
+            }
+          },
+          "contacts": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "first_name": {
+                "type": "string"
+              },
+              "last_name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "phone": {
+                "type": "string"
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -4347,7 +4460,8 @@
                         "tracking_url": {
                           "type": "string"
                         }
-                      }
+                      },
+                      "$ref": "#/components/schemas/Order"
                     }
                   }
                 }
@@ -4355,7 +4469,11 @@
             }
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
             "description": "Order not found"
@@ -4365,7 +4483,7 @@
     },
     "/api/v1/ecommerce/orders/{id}/notify": {
       "post": {
-        "summary": "Send notification for an order",
+        "summary": "Send order notification to customer",
         "tags": [
           "E-commerce"
         ],
@@ -4394,18 +4512,20 @@
                 "properties": {
                   "message": {
                     "type": "string",
-                    "description": "Custom message to send",
+                    "description": "Custom notification message (optional)",
                     "example": "Your order has been shipped!"
                   },
                   "template": {
                     "type": "string",
                     "enum": [
-                      "created",
-                      "fulfilled",
-                      "shipped",
-                      "delivered"
+                      "pending",
+                      "processing",
+                      "completed",
+                      "cancelled",
+                      "refunded",
+                      "failed"
                     ],
-                    "description": "Use a predefined template",
+                    "description": "Notification template to use",
                     "example": "shipped"
                   }
                 }
@@ -4449,10 +4569,129 @@
             "description": "No active WhatsApp account or phone number"
           },
           "401": {
-            "description": "Unauthorized"
+            "description": "Unauthorized",
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           },
           "404": {
             "description": "Order not found"
+          }
+        }
+      }
+    },
+    "/api/v1/ecommerce/orders": {
+      "get": {
+        "summary": "List orders",
+        "tags": [
+          "E-commerce"
+        ],
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "integrationId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by integration ID"
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Pending",
+                "Processing",
+                "Completed",
+                "Cancelled",
+                "Refunded",
+                "Failed"
+              ]
+            },
+            "description": "Filter by order status"
+          },
+          {
+            "in": "query",
+            "name": "contactId",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by contact ID"
+          },
+          {
+            "in": "query",
+            "name": "startDate",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Filter orders from this date"
+          },
+          {
+            "in": "query",
+            "name": "endDate",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Filter orders until this date"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "type": "integer",
+              "default": 20
+            },
+            "description": "Items per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Order"
+                      }
+                    },
+                    "pagination": {
+                      "$ref": "#/components/schemas/Pagination"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
           }
         }
       }

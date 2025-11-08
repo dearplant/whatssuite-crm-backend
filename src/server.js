@@ -11,6 +11,8 @@ import './workers/contactImportWorker.js'; // Initialize contact import worker
 import './workers/flowWorker.js'; // Initialize flow worker
 import './workers/chatbotWorker.js'; // Initialize chatbot worker
 import './workers/transcriptionWorker.js'; // Initialize transcription worker
+import './workers/orderWorker.js'; // Initialize order worker
+import './workers/abandonedCartWorker.js'; // Initialize abandoned cart worker
 import { initializeCampaignWorker } from './workers/campaignWorker.js'; // Initialize campaign worker
 import { initializeTriggers } from './services/flowTriggers.js';
 import cronScheduler from './services/cronScheduler.js';
