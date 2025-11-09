@@ -73,6 +73,8 @@ router.post(
 router.post('/webhooks/shopify/orders-create', ecommerceController.shopifyOrderCreated);
 router.post('/webhooks/shopify/orders-fulfilled', ecommerceController.shopifyOrderCreated);
 router.post('/webhooks/shopify/checkouts-create', ecommerceController.shopifyCheckoutCreated);
+// Alias routes for simpler webhook paths
+router.post('/webhooks/shopify/orders', ecommerceController.shopifyOrderCreated);
 
 // WooCommerce Webhooks (no auth - verified by HMAC)
 router.post('/webhooks/woocommerce/orders-create', ecommerceController.woocommerceOrderCreated);
@@ -82,6 +84,8 @@ router.post(
   '/webhooks/woocommerce/checkout-updated',
   ecommerceController.woocommerceCheckoutUpdated
 );
+// Alias routes for simpler webhook paths
+router.post('/webhooks/woocommerce/orders', ecommerceController.woocommerceOrderCreated);
 
 // Orders
 router.get('/orders', authenticate, authorize('ecommerce:read'), ecommerceController.listOrders);
@@ -96,6 +100,7 @@ router.post(
 );
 
 // Abandoned Carts
+// Note: Specific routes must come before parameterized routes
 router.get(
   '/abandoned-carts',
   authenticate,
@@ -110,6 +115,22 @@ router.get(
   ecommerceController.getAbandonedCartStatistics
 );
 
+// Alias for stats endpoint
+router.get(
+  '/abandoned-carts/stats',
+  authenticate,
+  authorize('ecommerce:read'),
+  ecommerceController.getAbandonedCartStatistics
+);
+
+router.get(
+  '/abandoned-carts/recovery-queue',
+  authenticate,
+  authorize('ecommerce:read'),
+  ecommerceController.getRecoveryQueue
+);
+
+// Parameterized routes must come after specific routes
 router.get(
   '/abandoned-carts/:id',
   authenticate,

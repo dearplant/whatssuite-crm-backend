@@ -28,12 +28,12 @@ class WhatsAppHealthCheckService {
           is_active: true,
         },
         include: {
-          user: {
+          users: {
             select: {
               id: true,
               email: true,
-              firstName: true,
-              role: true,
+              first_name: true,
+              last_name: true,
             },
           },
         },
@@ -89,7 +89,7 @@ class WhatsAppHealthCheckService {
   async checkAccountHealth(account) {
     const result = {
       accountId: account.id,
-      status: account.healthStatus,
+      status: account.health_score >= 80 ? 'Healthy' : account.health_score >= 40 ? 'Warning' : 'Critical',
       reconnected: false,
       notified: false,
     };
@@ -97,17 +97,17 @@ class WhatsAppHealthCheckService {
     try {
       // Check if client is active
       const isClientActive = whatsappService.isAccountConnected(account.id);
-      const currentStatus = account.connectionStatus;
+      const currentStatus = account.status;
       const now = new Date();
 
       // Determine health status
-      let newHealthStatus = account.healthStatus;
+      let newHealthStatus = account.health_score >= 80 ? 'Healthy' : account.health_score >= 40 ? 'Warning' : 'Critical';
       let newConnectionStatus = currentStatus;
 
       if (isClientActive) {
         // Client is active and connected
         newHealthStatus = 'Healthy';
-        newConnectionStatus = 'Connected';
+        newConnectionStatus = 'connected';
 
         // Clear notification tracking if account is back online
         if (this.notificationsSent.has(account.id)) {
@@ -119,14 +119,14 @@ class WhatsAppHealthCheckService {
         await this.updateUptimeMetrics(account.id, true);
       } else {
         // Client is not active
-        if (currentStatus === 'Connected') {
+        if (currentStatus === 'connected') {
           // Mark as disconnected if it was previously connected
-          newConnectionStatus = 'Disconnected';
+          newConnectionStatus = 'disconnected';
           newHealthStatus = 'Warning';
           logger.warn(`Account ${account.id} appears disconnected, marking as Warning`);
-        } else if (currentStatus === 'Disconnected' || currentStatus === 'Failed') {
+        } else if (currentStatus === 'disconnected' || currentStatus === 'failed') {
           // Check how long it's been offline
-          const lastDisconnectedAt = account.lastDisconnectedAt || account.updatedAt;
+          const lastDisconnectedAt = account.last_connected_at || account.updated_at;
           const offlineDuration = now - new Date(lastDisconnectedAt);
 
           if (offlineDuration > this.OFFLINE_NOTIFICATION_THRESHOLD) {
@@ -143,7 +143,7 @@ class WhatsAppHealthCheckService {
           }
 
           // Attempt reconnection for failed or disconnected sessions
-          if (currentStatus === 'Failed' || currentStatus === 'Disconnected') {
+          if (currentStatus === 'failed' || currentStatus === 'disconnected') {
             logger.info(`Attempting to reconnect account ${account.id}`);
             await this.attemptReconnection(account);
             result.reconnected = true;
@@ -155,18 +155,19 @@ class WhatsAppHealthCheckService {
       }
 
       // Update database if status changed
-      if (newHealthStatus !== account.healthStatus || newConnectionStatus !== currentStatus) {
+      const oldHealthStatus = account.health_score >= 80 ? 'Healthy' : account.health_score >= 40 ? 'Warning' : 'Critical';
+      if (newHealthStatus !== oldHealthStatus || newConnectionStatus !== currentStatus) {
         await prisma.whatsapp_accounts.update({
           where: { id: account.id },
           data: {
-            healthStatus: newHealthStatus,
-            connectionStatus: newConnectionStatus,
-            updatedAt: now,
+            status: newConnectionStatus,
+            health_score: newHealthStatus === 'Healthy' ? 100 : newHealthStatus === 'Warning' ? 50 : 0,
+            updated_at: now,
           },
         });
 
         logger.info(`Updated account ${account.id} status`, {
-          oldHealth: account.healthStatus,
+          oldHealth: oldHealthStatus,
           newHealth: newHealthStatus,
           oldConnection: currentStatus,
           newConnection: newConnectionStatus,
@@ -208,8 +209,8 @@ class WhatsAppHealthCheckService {
       await prisma.whatsapp_accounts.update({
         where: { id: account.id },
         data: {
-          connectionStatus: 'Connecting',
-          healthStatus: 'Warning',
+          status: 'connecting',
+          health_score: 50,
         },
       });
 
@@ -244,21 +245,21 @@ class WhatsAppHealthCheckService {
       );
 
       // Get admin users for this account
-      const adminEmail = account.user.email;
-      const adminName = account.user.firstName;
+      const adminEmail = account.users.email;
+      const adminName = account.users.first_name;
 
       // Send email notification
       await emailService.sendEmail({
         to: adminEmail,
-        subject: `WhatsApp Account Offline Alert - ${account.displayName || account.phoneNumber}`,
+        subject: `WhatsApp Account Offline Alert - ${account.name || account.phone}`,
         template: 'whatsapp-offline-alert',
         templateData: {
           firstName: adminName,
-          accountName: account.displayName || account.phoneNumber,
-          phoneNumber: account.phoneNumber,
+          accountName: account.name || account.phone,
+          phoneNumber: account.phone,
           offlineHours,
           offlineMinutes,
-          lastConnectedAt: account.lastConnectedAt,
+          lastConnectedAt: account.last_connected_at,
           accountId: account.id,
         },
         priority: 'high',
@@ -281,20 +282,20 @@ class WhatsAppHealthCheckService {
       const updateData = {};
 
       if (isOnline) {
-        updateData.lastConnectedAt = new Date();
+        updateData.last_connected_at = new Date();
       } else {
-        // Only update lastDisconnectedAt if it's not already set recently
+        // Only update last_connected_at if it's not already set recently
         const account = await prisma.whatsapp_accounts.findUnique({
           where: { id: accountId },
-          select: { lastDisconnectedAt: true },
+          select: { last_connected_at: true },
         });
 
         if (
-          !account.lastDisconnectedAt ||
-          new Date() - new Date(account.lastDisconnectedAt) > 60000
+          !account.last_connected_at ||
+          new Date() - new Date(account.last_connected_at) > 60000
         ) {
-          // More than 1 minute
-          updateData.lastDisconnectedAt = new Date();
+          // More than 1 minute - we'll just update it
+          updateData.last_connected_at = new Date();
         }
       }
 
@@ -315,7 +316,7 @@ class WhatsAppHealthCheckService {
   async getHealthCheckStats() {
     try {
       const stats = await prisma.whatsapp_accounts.groupBy({
-        by: ['healthStatus', 'connectionStatus'],
+        by: ['status', 'health_score'],
         where: {
           is_active: true,
         },

@@ -105,41 +105,41 @@ model campaign_messages {
 }
 
 model campaigns {
-  id                  String              @id
-  team_id             String
-  account_id          String
-  user_id             String
-  template_id         String?
-  name                String
-  description         String?
-  messageType         String
-  message_content     String?
-  template_variables  Json?
-  audienceType        String
-  audience_config     Json                @default("{}")
-  schedule_type       String              @default("now")
-  scheduled_at        DateTime?
-  recurring_config    Json?
-  throttle_config     Json                @default("{\"messages_per_minute\": 10}")
-  status              String              @default("draft")
-  total_recipients    Int                 @default(0)
-  messages_sent       Int                 @default(0)
-  messages_delivered  Int                 @default(0)
-  messages_read       Int                 @default(0)
-  messages_replied    Int                 @default(0)
-  messages_failed     Int                 @default(0)
-  is_ab_test          Boolean             @default(false)
-  ab_test_config      Json?
-  winning_variant_id  String?
-  started_at          DateTime?
-  completed_at        DateTime?
-  created_at          DateTime            @default(now())
-  updated_at          DateTime
-  campaign_messages   campaign_messages[]
-  whatsapp_accounts   whatsapp_accounts   @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  teams               teams               @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  templates           templates?          @relation(fields: [template_id], references: [id])
-  users               users               @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id                 String              @id
+  team_id            String
+  account_id         String
+  user_id            String
+  template_id        String?
+  name               String
+  description        String?
+  messageType        String
+  message_content    String?
+  template_variables Json?
+  audienceType       String
+  audience_config    Json                @default("{}")
+  schedule_type      String              @default("now")
+  scheduled_at       DateTime?
+  recurring_config   Json?
+  throttle_config    Json                @default("{\"messages_per_minute\": 10}")
+  status             String              @default("draft")
+  total_recipients   Int                 @default(0)
+  messages_sent      Int                 @default(0)
+  messages_delivered Int                 @default(0)
+  messages_read      Int                 @default(0)
+  messages_replied   Int                 @default(0)
+  messages_failed    Int                 @default(0)
+  is_ab_test         Boolean             @default(false)
+  ab_test_config     Json?
+  winning_variant_id String?
+  started_at         DateTime?
+  completed_at       DateTime?
+  created_at         DateTime            @default(now())
+  updated_at         DateTime
+  campaign_messages  campaign_messages[]
+  whatsapp_accounts  whatsapp_accounts   @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  teams              teams               @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  templates          templates?          @relation(fields: [template_id], references: [id])
+  users              users               @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([account_id])
   @@index([created_at])
@@ -164,16 +164,16 @@ model contact_tags {
 }
 
 model segments {
-  id          String   @id
-  team_id     String
-  name        String
-  description String?
-  conditions  Json     @default("{}")
-  contact_count Int    @default(0)
+  id                 String    @id
+  team_id            String
+  name               String
+  description        String?
+  conditions         Json      @default("{}")
+  contact_count      Int       @default(0)
   last_calculated_at DateTime?
-  created_at  DateTime @default(now())
-  updated_at  DateTime
-  teams       teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  created_at         DateTime  @default(now())
+  updated_at         DateTime
+  teams              teams     @relation(fields: [team_id], references: [id], onDelete: Cascade)
 
   @@unique([team_id, name])
   @@index([team_id])
@@ -222,15 +222,15 @@ model contacts {
   created_at            DateTime                @default(now())
   updated_at            DateTime
   deleted_at            DateTime?
+  abandoned_carts       abandoned_carts[]
   campaign_messages     campaign_messages[]
+  chatbot_conversations chatbot_conversations[]
   contact_tags          contact_tags[]
   teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
   conversations         conversations[]
+  ecommerce_orders      ecommerce_orders[]
   flow_executions       flow_executions[]
   messages              messages[]
-  chatbot_conversations chatbot_conversations[]
-  ecommerce_orders      ecommerce_orders[]
-  abandoned_carts       abandoned_carts[]
 
   @@unique([team_id, phone])
   @@index([created_at])
@@ -253,13 +253,13 @@ model conversations {
   is_starred            Boolean                 @default(false)
   created_at            DateTime                @default(now())
   updated_at            DateTime
+  chatbot_conversations chatbot_conversations[]
   whatsapp_accounts     whatsapp_accounts       @relation(fields: [account_id], references: [id], onDelete: Cascade)
   users                 users?                  @relation(fields: [assigned_agent_id], references: [id])
   contacts              contacts                @relation(fields: [contact_id], references: [id], onDelete: Cascade)
   teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
   flow_executions       flow_executions[]
   messages              messages[]
-  chatbot_conversations chatbot_conversations[]
 
   @@unique([account_id, contact_id])
   @@index([account_id])
@@ -339,11 +339,11 @@ model messages {
   delivered_at        DateTime?
   read_at             DateTime?
   created_at          DateTime           @default(now())
+  chatbot_messages    chatbot_messages[]
   whatsapp_accounts   whatsapp_accounts  @relation(fields: [account_id], references: [id], onDelete: Cascade)
   contacts            contacts?          @relation(fields: [contact_id], references: [id])
   conversations       conversations      @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
   users               users?             @relation(fields: [sender_id], references: [id])
-  chatbot_messages    chatbot_messages[]
 
   @@index([account_id])
   @@index([contact_id])
@@ -356,30 +356,31 @@ model messages {
 }
 
 model subscriptions {
-  id                      String   @id @default(uuid())
-  team_id                 String
-  plan_id                 String
-  gateway_id              String
+  id                       String             @id @default(uuid())
+  team_id                  String
+  plan_id                  String
+  gateway_id               String
   external_subscription_id String?
-  status                  String   // Active, Cancelled, Expired, PastDue
-  current_period_start    DateTime
-  current_period_end      DateTime
-  cancel_at_period_end    Boolean  @default(false)
-  cancelled_at            DateTime?
-  metadata                Json?
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
-
-  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  subscription_plans      subscription_plans @relation(fields: [plan_id], references: [id])
-  payment_gateways        payment_gateways @relation(fields: [gateway_id], references: [id])
-  payments                payments[]
-  invoices                invoices[]
+  status                   String
+  current_period_start     DateTime
+  current_period_end       DateTime
+  cancel_at_period_end     Boolean            @default(false)
+  cancelled_at             DateTime?
+  metadata                 Json?
+  created_at               DateTime           @default(now())
+  updated_at               DateTime           @updatedAt
+  external_customer_id     String?
+  invoices                 invoices[]
+  payments                 payments[]
+  payment_gateways         payment_gateways   @relation(fields: [gateway_id], references: [id])
+  subscription_plans       subscription_plans @relation(fields: [plan_id], references: [id])
+  teams                    teams              @relation(fields: [team_id], references: [id], onDelete: Cascade)
 
   @@index([team_id])
   @@index([plan_id])
   @@index([gateway_id])
   @@index([status])
+  @@index([external_customer_id])
 }
 
 model tags {
@@ -398,48 +399,61 @@ model tags {
 }
 
 model team_members {
-  id          String   @id
-  team_id     String
-  user_id     String
-  role        String
-  permissions Json     @default("[]")
-  joined_at   DateTime @default(now())
-  updated_at  DateTime
-  teams       teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  id           String           @id
+  team_id      String
+  user_id      String
+  email        String
+  role         String
+  status       TeamMemberStatus @default(Active)
+  permissions  Json             @default("[]")
+  invited_by   String?
+  invited_at   DateTime?
+  joined_at    DateTime?
+  suspended_at DateTime?
+  created_at   DateTime         @default(now())
+  updated_at   DateTime         @updatedAt
+  teams        teams            @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  users        users            @relation("TeamMemberUser", fields: [user_id], references: [id], onDelete: Cascade)
+  inviter      users?           @relation("TeamMemberInviter", fields: [invited_by], references: [id])
 
   @@unique([team_id, user_id])
+  @@unique([team_id, email])
   @@index([role])
+  @@index([status])
   @@index([team_id])
   @@index([user_id])
 }
 
 model teams {
-  id                String              @id
-  name              String
-  slug              String              @unique
-  logo_url          String?
-  settings          Json                @default("{}")
-  owner_id          String
-  created_at        DateTime            @default(now())
-  updated_at        DateTime            @updatedAt
-  campaigns         campaigns[]
-  contacts          contacts[]
-  conversations     conversations[]
-  flows             flows[]
-  tags              tags[]
-  team_members      team_members[]
-  users             users               @relation(fields: [owner_id], references: [id], onDelete: Cascade)
-  templates         templates[]
-  whatsapp_accounts whatsapp_accounts[]
-  segments          segments[]
+  id                     String                   @id
+  name                   String
+  slug                   String                   @unique
+  logo_url               String?
+  settings               Json                     @default("{}")
+  owner_id               String
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime                 @updatedAt
+  abandoned_carts        abandoned_carts[]
+  analytics_snapshots    analytics_snapshots[]
+  campaigns              campaigns[]
+  contacts               contacts[]
+  conversations          conversations[]
   ecommerce_integrations ecommerce_integrations[]
-  ecommerce_orders  ecommerce_orders[]
-  abandoned_carts   abandoned_carts[]
-  payment_gateways  payment_gateways[]
-  team_subscriptions subscriptions[]
-  payments          payments[]
-  invoices          invoices[]
+  ecommerce_orders       ecommerce_orders[]
+  flows                  flows[]
+  invoices               invoices[]
+  payment_gateways       payment_gateways[]
+  payments               payments[]
+  reports                reports[]
+  segments               segments[]
+  team_subscriptions     subscriptions[]
+  tags                   tags[]
+  team_members           team_members[]
+  team_invitations       team_invitations[]
+  activity_logs          activity_logs[]
+  users                  users                    @relation(fields: [owner_id], references: [id], onDelete: Cascade)
+  templates              templates[]
+  whatsapp_accounts      whatsapp_accounts[]
 
   @@index([owner_id])
   @@index([slug])
@@ -474,35 +488,40 @@ model templates {
 }
 
 model users {
-  id                    String                  @id
-  email                 String                  @unique
-  password_hash         String
-  first_name            String?
-  last_name             String?
-  phone                 String?
-  avatar_url            String?
-  timezone              String                  @default("UTC")
-  language              String                  @default("en")
-  is_active             Boolean                 @default(true)
-  email_verified_at     DateTime?
-  last_login_at         DateTime?
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @updatedAt
-  deleted_at            DateTime?
-  ai_providers          ai_providers[]
-  api_keys              api_keys[]
-  audit_logs            audit_logs[]
-  campaigns             campaigns[]
-  conversations         conversations[]
-  flows                 flows[]
-  messages              messages[]
-  team_members          team_members[]
-  teams                 teams[]
-  whatsapp_accounts     whatsapp_accounts[]
-  chatbots              chatbots[]
-  voice_transcriptions  voice_transcriptions[]
-  refresh_tokens        refresh_tokens[]
+  id                     String                   @id
+  email                  String                   @unique
+  password_hash          String
+  first_name             String?
+  last_name              String?
+  phone                  String?
+  avatar_url             String?
+  timezone               String                   @default("UTC")
+  language               String                   @default("en")
+  is_active              Boolean                  @default(true)
+  email_verified_at      DateTime?
+  last_login_at          DateTime?
+  created_at             DateTime                 @default(now())
+  updated_at             DateTime                 @updatedAt
+  deleted_at             DateTime?
+  ai_providers           ai_providers[]
+  api_keys               api_keys[]
+  audit_logs             audit_logs[]
+  campaigns              campaigns[]
+  chatbots               chatbots[]
+  conversations          conversations[]
   ecommerce_integrations ecommerce_integrations[]
+  flows                  flows[]
+  messages               messages[]
+  refresh_tokens         refresh_tokens[]
+  reports                reports[]
+  team_members           team_members[]           @relation("TeamMemberUser")
+  team_member_invites    team_members[]           @relation("TeamMemberInviter")
+  teams                  teams[]
+  voice_transcriptions   voice_transcriptions[]
+  whatsapp_accounts      whatsapp_accounts[]
+  invitations_sent       team_invitations[]       @relation("InvitedBy")
+  activity_logs_owner    activity_logs[]          @relation("ActivityOwner")
+  activity_logs_performer activity_logs[]         @relation("ActivityPerformer")
 
   @@index([created_at])
   @@index([email])
@@ -516,8 +535,7 @@ model refresh_tokens {
   expires_at DateTime
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
-  user users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user       users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id])
   @@index([expires_at])
@@ -545,12 +563,12 @@ model whatsapp_accounts {
   deleted_at             DateTime?
   account_health_history account_health_history[]
   campaigns              campaigns[]
+  chatbots               chatbots[]
   conversations          conversations[]
   messages               messages[]
   templates              templates[]
   teams                  teams                    @relation(fields: [team_id], references: [id], onDelete: Cascade)
   users                  users                    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  chatbots               chatbots[]
 
   @@unique([team_id, phone])
   @@index([health_score])
@@ -580,38 +598,31 @@ model ai_providers {
   @@index([user_id])
 }
 
-enum ChatbotConversationStatus {
-  Active
-  Completed
-  Timeout
-  HandedOff
-}
-
 model chatbots {
-  id                      String                 @id
-  user_id                 String
-  account_id              String
-  ai_provider_id          String
-  name                    String
-  description             String?
-  system_prompt           String                 @db.Text
-  welcome_message         String?
-  fallback_message        String
-  is_active               Boolean                @default(false)
-  triggers                Json                   @default("{}")
-  conversation_timeout    Int                    @default(60)
-  max_conversation_turns  Int                    @default(10)
-  context_window          Int                    @default(5)
-  total_conversations     Int                    @default(0)
-  total_messages          Int                    @default(0)
-  avg_response_time       Int?
-  avg_satisfaction_score  Decimal?               @db.Decimal(3, 2)
-  created_at              DateTime               @default(now())
-  updated_at              DateTime
-  users                   users                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  whatsapp_accounts       whatsapp_accounts      @relation(fields: [account_id], references: [id], onDelete: Cascade)
-  ai_providers            ai_providers           @relation(fields: [ai_provider_id], references: [id])
-  conversations           chatbot_conversations[]
+  id                     String                  @id
+  user_id                String
+  account_id             String
+  ai_provider_id         String
+  name                   String
+  description            String?
+  system_prompt          String
+  welcome_message        String?
+  fallback_message       String
+  is_active              Boolean                 @default(false)
+  triggers               Json                    @default("{}")
+  conversation_timeout   Int                     @default(60)
+  max_conversation_turns Int                     @default(10)
+  context_window         Int                     @default(5)
+  total_conversations    Int                     @default(0)
+  total_messages         Int                     @default(0)
+  avg_response_time      Int?
+  avg_satisfaction_score Decimal?                @db.Decimal(3, 2)
+  created_at             DateTime                @default(now())
+  updated_at             DateTime
+  conversations          chatbot_conversations[]
+  whatsapp_accounts      whatsapp_accounts       @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  ai_providers           ai_providers            @relation(fields: [ai_provider_id], references: [id])
+  users                  users                   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@index([user_id, account_id, is_active])
   @@index([user_id])
@@ -620,20 +631,20 @@ model chatbots {
 }
 
 model chatbot_conversations {
-  id                String                    @id
-  chatbot_id        String
-  contact_id        String
-  conversation_id   String
-  status            ChatbotConversationStatus @default(Active)
-  turn_count        Int                       @default(0)
+  id                 String                    @id
+  chatbot_id         String
+  contact_id         String
+  conversation_id    String
+  status             ChatbotConversationStatus @default(Active)
+  turn_count         Int                       @default(0)
   satisfaction_score Int?
-  handoff_reason    String?
-  started_at        DateTime                  @default(now())
-  ended_at          DateTime?
-  chatbots          chatbots                  @relation(fields: [chatbot_id], references: [id], onDelete: Cascade)
-  contacts          contacts                  @relation(fields: [contact_id], references: [id], onDelete: Cascade)
-  conversations     conversations             @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
-  messages          chatbot_messages[]
+  handoff_reason     String?
+  started_at         DateTime                  @default(now())
+  ended_at           DateTime?
+  chatbots           chatbots                  @relation(fields: [chatbot_id], references: [id], onDelete: Cascade)
+  contacts           contacts                  @relation(fields: [contact_id], references: [id], onDelete: Cascade)
+  conversations      conversations             @relation(fields: [conversation_id], references: [id], onDelete: Cascade)
+  messages           chatbot_messages[]
 
   @@index([chatbot_id, status])
   @@index([contact_id])
@@ -641,19 +652,234 @@ model chatbot_conversations {
 }
 
 model chatbot_messages {
-  id                       String                @id
-  chatbot_conversation_id  String
-  message_id               String
-  role                     String
-  content                  String                @db.Text
-  tokens_used              Int?
-  response_time            Int?
-  created_at               DateTime              @default(now())
-  chatbot_conversations    chatbot_conversations @relation(fields: [chatbot_conversation_id], references: [id], onDelete: Cascade)
-  messages                 messages              @relation(fields: [message_id], references: [id], onDelete: Cascade)
+  id                      String                @id
+  chatbot_conversation_id String
+  message_id              String
+  role                    String
+  content                 String
+  tokens_used             Int?
+  response_time           Int?
+  created_at              DateTime              @default(now())
+  chatbot_conversations   chatbot_conversations @relation(fields: [chatbot_conversation_id], references: [id], onDelete: Cascade)
+  messages                messages              @relation(fields: [message_id], references: [id], onDelete: Cascade)
 
   @@index([chatbot_conversation_id])
   @@index([message_id])
+}
+
+model voice_transcriptions {
+  id              String                @id
+  user_id         String
+  message_id      String                @unique
+  audio_url       String
+  transcription   String
+  language        String
+  duration        Int
+  provider        TranscriptionProvider
+  confidence      Decimal?              @db.Decimal(3, 2)
+  processing_time Int
+  cost            Decimal?              @db.Decimal(10, 4)
+  created_at      DateTime              @default(now())
+  users           users                 @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([message_id])
+}
+
+model ecommerce_integrations {
+  id                      String                     @id @default(uuid())
+  team_id                 String
+  user_id                 String
+  provider                EcommerceProvider
+  store_url               String
+  store_name              String?
+  access_token_encrypted  String
+  refresh_token_encrypted String?
+  webhook_secret          String?
+  status                  EcommerceIntegrationStatus @default(Active)
+  last_sync_at            DateTime?
+  sync_error              String?
+  metadata                Json?
+  is_active               Boolean                    @default(true)
+  created_at              DateTime                   @default(now())
+  updated_at              DateTime                   @updatedAt
+  abandoned_carts         abandoned_carts[]
+  teams                   teams                      @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  users                   users                      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  orders                  ecommerce_orders[]
+
+  @@unique([team_id, provider, store_url])
+  @@index([team_id])
+  @@index([user_id])
+  @@index([status])
+}
+
+model ecommerce_orders {
+  id                 String                 @id @default(uuid())
+  integration_id     String
+  team_id            String
+  contact_id         String?
+  external_order_id  String
+  order_number       String
+  customer_email     String?
+  customer_phone     String?
+  customer_name      String?
+  total_amount       Decimal                @db.Decimal(10, 2)
+  currency           String                 @default("USD")
+  status             OrderStatus
+  items              Json
+  shipping_address   Json?
+  billing_address    Json?
+  tracking_number    String?
+  tracking_url       String?
+  fulfillment_status String?
+  payment_status     String?
+  notes              String?
+  metadata           Json?
+  synced_at          DateTime               @default(now())
+  created_at         DateTime               @default(now())
+  updated_at         DateTime               @updatedAt
+  contacts           contacts?              @relation(fields: [contact_id], references: [id])
+  integration        ecommerce_integrations @relation(fields: [integration_id], references: [id], onDelete: Cascade)
+  teams              teams                  @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([integration_id, external_order_id])
+  @@index([integration_id])
+  @@index([team_id])
+  @@index([contact_id])
+  @@index([status])
+  @@index([customer_email])
+  @@index([customer_phone])
+}
+
+model abandoned_carts {
+  id               String                 @id @default(uuid())
+  integration_id   String
+  team_id          String
+  contact_id       String?
+  external_cart_id String
+  customer_email   String?
+  customer_phone   String?
+  customer_name    String?
+  cart_url         String
+  total_amount     Decimal                @db.Decimal(10, 2)
+  currency         String                 @default("USD")
+  items            Json
+  status           CartStatus             @default(Abandoned)
+  abandoned_at     DateTime
+  recovery_sent_at DateTime?
+  recovered_at     DateTime?
+  expires_at       DateTime
+  metadata         Json?
+  created_at       DateTime               @default(now())
+  updated_at       DateTime               @updatedAt
+  contacts         contacts?              @relation(fields: [contact_id], references: [id])
+  integration      ecommerce_integrations @relation(fields: [integration_id], references: [id], onDelete: Cascade)
+  teams            teams                  @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@unique([integration_id, external_cart_id])
+  @@index([integration_id])
+  @@index([team_id])
+  @@index([contact_id])
+  @@index([status])
+  @@index([abandoned_at])
+  @@index([expires_at])
+}
+
+model payment_gateways {
+  id                    String          @id @default(uuid())
+  team_id               String
+  provider              String
+  credentials_encrypted String
+  is_active             Boolean         @default(true)
+  metadata              Json?
+  created_at            DateTime        @default(now())
+  updated_at            DateTime        @updatedAt
+  invoices              invoices[]
+  teams                 teams           @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  payments              payments[]
+  subscriptions         subscriptions[]
+
+  @@index([team_id])
+  @@index([provider])
+}
+
+model subscription_plans {
+  id               String          @id @default(uuid())
+  name             String
+  description      String?
+  price            Decimal         @db.Decimal(10, 2)
+  currency         String          @default("USD")
+  interval         String
+  features         Json
+  is_active        Boolean         @default(true)
+  created_at       DateTime        @default(now())
+  updated_at       DateTime        @updatedAt
+  external_plan_id String?
+  subscriptions    subscriptions[]
+
+  @@index([is_active])
+}
+
+model payments {
+  id                  String           @id @default(uuid())
+  team_id             String
+  subscription_id     String?
+  gateway_id          String
+  external_payment_id String?
+  amount              Decimal          @db.Decimal(10, 2)
+  currency            String           @default("USD")
+  status              String
+  payment_method      String?
+  metadata            Json?
+  created_at          DateTime         @default(now())
+  updated_at          DateTime         @updatedAt
+  invoices            invoices[]
+  payment_gateways    payment_gateways @relation(fields: [gateway_id], references: [id])
+  subscriptions       subscriptions?   @relation(fields: [subscription_id], references: [id])
+  teams               teams            @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@index([team_id])
+  @@index([subscription_id])
+  @@index([gateway_id])
+  @@index([status])
+}
+
+model invoices {
+  id               String           @id @default(uuid())
+  team_id          String
+  subscription_id  String?
+  payment_id       String?
+  gateway_id       String
+  invoice_number   String           @unique
+  amount           Decimal          @db.Decimal(10, 2)
+  currency         String           @default("USD")
+  status           String
+  due_date         DateTime
+  paid_at          DateTime?
+  pdf_url          String?
+  metadata         Json?
+  created_at       DateTime         @default(now())
+  updated_at       DateTime         @updatedAt
+  sent_at          DateTime?        @db.Timestamp(6)
+  payment_gateways payment_gateways @relation(fields: [gateway_id], references: [id])
+  payments         payments?        @relation(fields: [payment_id], references: [id])
+  subscriptions    subscriptions?   @relation(fields: [subscription_id], references: [id])
+  teams            teams            @relation(fields: [team_id], references: [id], onDelete: Cascade)
+
+  @@index([team_id])
+  @@index([subscription_id])
+  @@index([payment_id])
+  @@index([gateway_id])
+  @@index([status])
+  @@index([invoice_number])
+}
+
+enum ChatbotConversationStatus {
+  Active
+  Completed
+  Timeout
+  HandedOff
 }
 
 enum TranscriptionProvider {
@@ -661,25 +887,6 @@ enum TranscriptionProvider {
   WhisperCpp
   GoogleSTT
   AssemblyAI
-}
-
-model voice_transcriptions {
-  id              String                 @id
-  user_id         String
-  message_id      String                 @unique
-  audio_url       String
-  transcription   String                 @db.Text
-  language        String
-  duration        Int
-  provider        TranscriptionProvider
-  confidence      Decimal?               @db.Decimal(3, 2)
-  processing_time Int
-  cost            Decimal?               @db.Decimal(10, 4)
-  created_at      DateTime               @default(now())
-  users           users                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-
-  @@index([user_id])
-  @@index([message_id])
 }
 
 enum EcommerceProvider {
@@ -693,35 +900,6 @@ enum EcommerceIntegrationStatus {
   Error
 }
 
-model ecommerce_integrations {
-  id                    String                      @id @default(uuid())
-  team_id               String
-  user_id               String
-  provider              EcommerceProvider
-  store_url             String
-  store_name            String?
-  access_token_encrypted String                     @db.Text
-  refresh_token_encrypted String?                   @db.Text
-  webhook_secret        String?
-  status                EcommerceIntegrationStatus  @default(Active)
-  last_sync_at          DateTime?
-  sync_error            String?                     @db.Text
-  metadata              Json?
-  is_active             Boolean                     @default(true)
-  created_at            DateTime                    @default(now())
-  updated_at            DateTime                    @updatedAt
-  
-  teams                 teams                       @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  users                 users                       @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  orders                ecommerce_orders[]
-  abandoned_carts       abandoned_carts[]
-
-  @@unique([team_id, provider, store_url])
-  @@index([team_id])
-  @@index([user_id])
-  @@index([status])
-}
-
 enum OrderStatus {
   Pending
   Processing
@@ -731,45 +909,6 @@ enum OrderStatus {
   Failed
 }
 
-model ecommerce_orders {
-  id                    String                  @id @default(uuid())
-  integration_id        String
-  team_id               String
-  contact_id            String?
-  external_order_id     String
-  order_number          String
-  customer_email        String?
-  customer_phone        String?
-  customer_name         String?
-  total_amount          Decimal                 @db.Decimal(10, 2)
-  currency              String                  @default("USD")
-  status                OrderStatus
-  items                 Json
-  shipping_address      Json?
-  billing_address       Json?
-  tracking_number       String?
-  tracking_url          String?
-  fulfillment_status    String?
-  payment_status        String?
-  notes                 String?                 @db.Text
-  metadata              Json?
-  synced_at             DateTime                @default(now())
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @updatedAt
-  
-  integration           ecommerce_integrations  @relation(fields: [integration_id], references: [id], onDelete: Cascade)
-  teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  contacts              contacts?               @relation(fields: [contact_id], references: [id], onDelete: SetNull)
-
-  @@unique([integration_id, external_order_id])
-  @@index([integration_id])
-  @@index([team_id])
-  @@index([contact_id])
-  @@index([status])
-  @@index([customer_email])
-  @@index([customer_phone])
-}
-
 enum CartStatus {
   Abandoned
   Recovered
@@ -777,130 +916,127 @@ enum CartStatus {
   Expired
 }
 
-model abandoned_carts {
-  id                    String                  @id @default(uuid())
-  integration_id        String
-  team_id               String
-  contact_id            String?
-  external_cart_id      String
-  customer_email        String?
-  customer_phone        String?
-  customer_name         String?
-  cart_url              String
-  total_amount          Decimal                 @db.Decimal(10, 2)
-  currency              String                  @default("USD")
-  items                 Json
-  status                CartStatus              @default(Abandoned)
-  abandoned_at          DateTime
-  recovery_sent_at      DateTime?
-  recovered_at          DateTime?
-  expires_at            DateTime
-  metadata              Json?
-  created_at            DateTime                @default(now())
-  updated_at            DateTime                @updatedAt
-  
-  integration           ecommerce_integrations  @relation(fields: [integration_id], references: [id], onDelete: Cascade)
-  teams                 teams                   @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  contacts              contacts?               @relation(fields: [contact_id], references: [id], onDelete: SetNull)
+model analytics_snapshots {
+  id                  String       @id @default(uuid())
+  team_id             String
+  whatsapp_account_id String?
+  date                DateTime     @db.Date
+  snapshot_type       SnapshotType
+  metrics             Json         @db.JsonB
+  created_at          DateTime     @default(now())
+  teams               teams        @relation(fields: [team_id], references: [id], onDelete: Cascade)
 
-  @@unique([integration_id, external_cart_id])
-  @@index([integration_id])
+  @@unique([team_id, whatsapp_account_id, date, snapshot_type])
+  @@index([team_id, date])
+  @@index([date])
+  @@index([snapshot_type])
+  @@map("analytics_snapshots")
+}
+
+enum SnapshotType {
+  Daily
+  Weekly
+  Monthly
+}
+
+model reports {
+  id            String       @id @default(uuid())
+  team_id       String
+  user_id       String
+  name          String
+  report_type   ReportType
+  format        ReportFormat
+  status        ReportStatus @default(Pending)
+  filters       Json         @default("{}")
+  schedule      Json?
+  file_url      String?
+  file_size     Int?
+  error_message String?
+  generated_at  DateTime?
+  expires_at    DateTime?
+  created_at    DateTime     @default(now())
+  updated_at    DateTime     @updatedAt
+  teams         teams        @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  users         users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
   @@index([team_id])
-  @@index([contact_id])
+  @@index([user_id])
   @@index([status])
-  @@index([abandoned_at])
+  @@index([created_at])
   @@index([expires_at])
 }
 
-
-// Payment Gateway Models
-model payment_gateways {
-  id                      String   @id @default(uuid())
-  team_id                 String
-  provider                String   // Stripe, PayPal, Razorpay
-  credentials_encrypted   String   @db.Text
-  is_active               Boolean  @default(true)
-  metadata                Json?
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
-
-  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  subscriptions           subscriptions[]
-  payments                payments[]
-  invoices                invoices[]
-
-  @@index([team_id])
-  @@index([provider])
+enum ReportType {
+  Overview
+  Messages
+  Campaigns
+  Contacts
+  Revenue
+  Chatbots
+  Flows
+  Custom
 }
 
-model subscription_plans {
-  id                      String   @id @default(uuid())
-  name                    String
-  description             String?  @db.Text
-  price                   Decimal  @db.Decimal(10, 2)
-  currency                String   @default("USD")
-  interval                String   // monthly, yearly
-  features                Json
-  is_active               Boolean  @default(true)
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
-
-  subscriptions           subscriptions[]
-
-  @@index([is_active])
+enum ReportFormat {
+  CSV
+  PDF
+  Excel
 }
 
-model payments {
-  id                      String   @id @default(uuid())
-  team_id                 String
-  subscription_id         String?
-  gateway_id              String
-  external_payment_id     String?
-  amount                  Decimal  @db.Decimal(10, 2)
-  currency                String   @default("USD")
-  status                  String   // Pending, Completed, Failed, Refunded
-  payment_method          String?
-  metadata                Json?
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
-
-  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  subscriptions           subscriptions? @relation(fields: [subscription_id], references: [id])
-  payment_gateways        payment_gateways @relation(fields: [gateway_id], references: [id])
-  invoices                invoices[]
-
-  @@index([team_id])
-  @@index([subscription_id])
-  @@index([gateway_id])
-  @@index([status])
+enum ReportStatus {
+  Pending
+  Processing
+  Completed
+  Failed
+  Expired
 }
 
-model invoices {
-  id                      String   @id @default(uuid())
-  team_id                 String
-  subscription_id         String?
-  payment_id              String?
-  gateway_id              String
-  invoice_number          String   @unique
-  amount                  Decimal  @db.Decimal(10, 2)
-  currency                String   @default("USD")
-  status                  String   // Draft, Sent, Paid, Overdue, Cancelled
-  due_date                DateTime
-  paid_at                 DateTime?
-  pdf_url                 String?
-  metadata                Json?
-  created_at              DateTime @default(now())
-  updated_at              DateTime @updatedAt
+model team_invitations {
+  id         String    @id @default(uuid())
+  team_id    String
+  email      String
+  role       String
+  token      String    @unique
+  invited_by String
+  expires_at DateTime
+  accepted_at DateTime?
+  created_at DateTime  @default(now())
+  teams      teams     @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  inviter    users     @relation("InvitedBy", fields: [invited_by], references: [id], onDelete: Cascade)
 
-  teams                   teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
-  subscriptions           subscriptions? @relation(fields: [subscription_id], references: [id])
-  payments                payments? @relation(fields: [payment_id], references: [id])
-  payment_gateways        payment_gateways @relation(fields: [gateway_id], references: [id])
-
+  @@unique([team_id, email])
   @@index([team_id])
-  @@index([subscription_id])
-  @@index([payment_id])
-  @@index([gateway_id])
-  @@index([status])
-  @@index([invoice_number])
+  @@index([email])
+  @@index([token])
+  @@index([expires_at])
+}
+
+model activity_logs {
+  id            String   @id @default(uuid())
+  team_id       String
+  user_id       String
+  performed_by  String
+  action        String
+  resource      String
+  resource_id   String?
+  details       Json?
+  ip_address    String?
+  user_agent    String?
+  created_at    DateTime @default(now())
+  teams         teams    @relation(fields: [team_id], references: [id], onDelete: Cascade)
+  owner         users    @relation("ActivityOwner", fields: [user_id], references: [id], onDelete: Cascade)
+  performer     users    @relation("ActivityPerformer", fields: [performed_by], references: [id], onDelete: Cascade)
+
+  @@index([team_id, created_at])
+  @@index([user_id])
+  @@index([performed_by])
+  @@index([action])
+  @@index([resource])
+}
+
+enum TeamMemberStatus {
+  Invited
+  Active
+  Suspended
+  Removed
 }

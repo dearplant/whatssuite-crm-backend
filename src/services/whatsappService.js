@@ -5,7 +5,16 @@ import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
 import prisma from '../config/database.js';
+import WhatsAppAccountModel from '../models/whatsappAccount.js';
 import logger from '../utils/logger.js';
+import {
+  NotFoundError,
+  BadRequestError,
+  WhatsAppConnectionError,
+  WhatsAppNotConnectedError,
+  WhatsAppQRExpiredError,
+  WhatsAppMessageLimitError,
+} from '../utils/errors.js';
 import {
   emitWhatsAppConnectionStatus,
   emitWhatsAppQRCode,
@@ -88,24 +97,31 @@ async function initializeClient(accountId, userId) {
     await fs.mkdir(sessionPath, { recursive: true });
 
     // Initialize client with LocalAuth
+    const puppeteerConfig = {
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+      ],
+    };
+
+    // Only set executablePath if explicitly provided via environment variable
+    // This allows Puppeteer to auto-detect Chrome/Chromium in different environments
+    if (process.env.CHROME_EXECUTABLE_PATH) {
+      puppeteerConfig.executablePath = process.env.CHROME_EXECUTABLE_PATH;
+    }
+
     const client = new Client({
       authStrategy: new LocalAuth({
         clientId: accountId,
         dataPath: sessionPath,
       }),
-      puppeteer: {
-        headless: true,
-        executablePath: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-        ],
-      },
+      puppeteer: puppeteerConfig,
     });
 
     // Store client metadata
@@ -408,24 +424,20 @@ async function connectWhatsAppAccount(userId, teamId, accountData) {
   try {
     logger.info(`Connecting WhatsApp account for user ${userId}`);
 
-    // Create WhatsApp account record
+    // Create WhatsApp account record using model
     const accountId = crypto.randomUUID();
-    const account = await prisma.whatsapp_accounts.create({
-      data: {
-        id: accountId,
-        user_id: userId,
-        team_id: teamId,
-        name: accountData.displayName || 'WhatsApp Account',
-        phone: accountData.phoneNumber || 'pending',
-        type: 'business',
-        status: 'disconnected',
-        health_score: 100,
-        daily_message_limit: 1000,
-        messages_sent_today: 0,
-        is_active: true,
-        created_at: new Date(),
-        updated_at: new Date(),
-      },
+    const account = await WhatsAppAccountModel.create({
+      id: accountId,
+      userId,
+      teamId,
+      name: accountData.displayName || 'WhatsApp Account',
+      phone: accountData.phoneNumber || 'pending',
+      type: 'business',
+      status: 'disconnected',
+      healthScore: 100,
+      dailyMessageLimit: 1000,
+      messagesSentToday: 0,
+      isActive: true,
     });
 
     // Initialize client
@@ -441,7 +453,7 @@ async function connectWhatsAppAccount(userId, teamId, accountData) {
     };
   } catch (error) {
     logger.error('Error connecting WhatsApp account:', error);
-    throw error;
+    throw new WhatsAppConnectionError('Failed to connect WhatsApp account: ' + error.message);
   }
 }
 
@@ -451,6 +463,12 @@ async function connectWhatsAppAccount(userId, teamId, accountData) {
 async function disconnectWhatsAppAccount(accountId) {
   try {
     logger.info(`Disconnecting WhatsApp account ${accountId}`);
+
+    // Verify account exists
+    const account = await WhatsAppAccountModel.findById(accountId);
+    if (!account) {
+      throw new NotFoundError('WhatsApp account not found', 'WhatsAppAccount');
+    }
 
     const client = activeClients.get(accountId);
 
@@ -462,16 +480,8 @@ async function disconnectWhatsAppAccount(accountId) {
       activeClients.delete(accountId);
     }
 
-    // Update database
-    await prisma.whatsapp_accounts.update({
-      where: { id: accountId },
-      data: {
-        connectionStatus: 'Disconnected',
-        lastDisconnectedAt: new Date(),
-        qrCode: null,
-        qrCodeExpiry: null,
-      },
-    });
+    // Update database using model
+    await WhatsAppAccountModel.updateStatus(accountId, 'disconnected');
 
     // Clean up session directory
     const sessionPath = path.join(process.cwd(), 'sessions', accountId);
@@ -483,12 +493,13 @@ async function disconnectWhatsAppAccount(accountId) {
 
     return {
       accountId,
-      status: 'Disconnected',
+      status: 'disconnected',
       message: 'WhatsApp account disconnected successfully',
     };
   } catch (error) {
     logger.error(`Error disconnecting WhatsApp account ${accountId}:`, error);
-    throw error;
+    if (error instanceof NotFoundError) throw error;
+    throw new WhatsAppConnectionError('Failed to disconnect WhatsApp account: ' + error.message, accountId);
   }
 }
 
@@ -497,35 +508,30 @@ async function disconnectWhatsAppAccount(accountId) {
  */
 async function getQRCode(accountId) {
   try {
+    // Get account from database directly (QR code fields not in model)
     const account = await prisma.whatsapp_accounts.findUnique({
       where: { id: accountId },
       select: {
-        qrCode: true,
-        qrCodeExpiry: true,
-        connectionStatus: true,
+        id: true,
+        status: true,
       },
     });
 
     if (!account) {
-      throw new Error('WhatsApp account not found');
+      throw new NotFoundError('WhatsApp account not found', 'WhatsAppAccount');
     }
 
-    if (!account.qrCode) {
-      throw new Error('QR code not available. Please initiate connection first.');
-    }
-
-    if (account.qrCodeExpiry && new Date() > account.qrCodeExpiry) {
-      throw new Error('QR code expired. Please request a new one.');
-    }
-
+    // QR code is stored temporarily in database during connection
+    // For now, return status - QR code will be emitted via Socket.io
     return {
-      qrCode: account.qrCode,
-      expiresAt: account.qrCodeExpiry,
-      status: account.connectionStatus,
+      accountId: account.id,
+      status: account.status,
+      message: 'QR code will be sent via WebSocket when available',
     };
   } catch (error) {
     logger.error(`Error getting QR code for account ${accountId}:`, error);
-    throw error;
+    if (error instanceof NotFoundError) throw error;
+    throw new BadRequestError('Failed to get QR code: ' + error.message);
   }
 }
 
@@ -596,29 +602,11 @@ async function getAccountHealth(accountId) {
  */
 async function getUserWhatsAppAccounts(userId) {
   try {
-    const accounts = await prisma.whatsapp_accounts.findMany({
-      where: { user_id: userId },
-      select: {
-        id: true,
-        phone: true,
-        name: true,
-        status: true,
-        health_score: true,
-        messages_sent_today: true,
-        daily_message_limit: true,
-        last_connected_at: true,
-        is_active: true,
-        created_at: true,
-      },
-      orderBy: {
-        created_at: 'desc',
-      },
-    });
-
+    const accounts = await WhatsAppAccountModel.findByUserId(userId);
     return accounts;
   } catch (error) {
     logger.error(`Error getting WhatsApp accounts for user ${userId}:`, error);
-    throw error;
+    throw new BadRequestError('Failed to get WhatsApp accounts: ' + error.message);
   }
 }
 
@@ -644,16 +632,17 @@ async function restoreActiveConnections() {
   try {
     logger.info('Restoring active WhatsApp connections...');
 
-    // TODO: Fix field name mismatches between code and database schema
-    // The database uses snake_case (status, is_active) but code expects camelCase
-    // Skipping restoration until schema is aligned
-    logger.warn('WhatsApp connection restoration temporarily disabled due to schema mismatch');
-    return;
-
     const connectedAccounts = await prisma.whatsapp_accounts.findMany({
       where: {
-        status: 'Connected',
+        status: 'connected',
         is_active: true,
+      },
+      select: {
+        id: true,
+        user_id: true,
+        team_id: true,
+        phone: true,
+        name: true,
       },
     });
 
@@ -661,7 +650,7 @@ async function restoreActiveConnections() {
 
     for (const account of connectedAccounts) {
       try {
-        const client = await initializeClient(account.id, account.userId);
+        const client = await initializeClient(account.id, account.user_id);
         await client.initialize();
         logger.info(`Restored connection for account ${account.id}`);
       } catch (error) {
@@ -669,8 +658,8 @@ async function restoreActiveConnections() {
         await prisma.whatsapp_accounts.update({
           where: { id: account.id },
           data: {
-            connectionStatus: 'Disconnected',
-            healthStatus: 'Critical',
+            status: 'disconnected',
+            health_score: 0,
           },
         });
       }
@@ -704,6 +693,68 @@ async function cleanupInactiveClients() {
     logger.info('Inactive clients cleanup complete');
   } catch (error) {
     logger.error('Error cleaning up inactive clients:', error);
+  }
+}
+
+/**
+ * Cleanup orphaned session files
+ * Removes session directories for accounts that are no longer active or don't exist
+ */
+async function cleanupOrphanedSessions() {
+  try {
+    logger.info('Cleaning up orphaned session files...');
+
+    const sessionsDir = path.join(process.cwd(), 'sessions');
+
+    // Check if sessions directory exists
+    try {
+      await fs.access(sessionsDir);
+    } catch (error) {
+      logger.info('Sessions directory does not exist, skipping cleanup');
+      return;
+    }
+
+    // Get all session directories
+    const sessionDirs = await fs.readdir(sessionsDir);
+    let cleanedCount = 0;
+    let errorCount = 0;
+
+    for (const sessionDir of sessionDirs) {
+      try {
+        const accountId = sessionDir;
+
+        // Check if account exists in database
+        const account = await prisma.whatsapp_accounts.findUnique({
+          where: { id: accountId },
+          select: { id: true, status: true, is_active: true },
+        });
+
+        // Remove session if:
+        // 1. Account doesn't exist in database
+        // 2. Account is not active
+        // 3. Account is disconnected and not in activeClients
+        const shouldCleanup =
+          !account ||
+          !account.is_active ||
+          (account.status === 'disconnected' && !activeClients.has(accountId));
+
+        if (shouldCleanup) {
+          const sessionPath = path.join(sessionsDir, sessionDir);
+          await fs.rm(sessionPath, { recursive: true, force: true });
+          cleanedCount++;
+          logger.info(`Cleaned up orphaned session for account ${accountId}`);
+        }
+      } catch (error) {
+        errorCount++;
+        logger.error(`Error cleaning up session ${sessionDir}:`, error);
+      }
+    }
+
+    logger.info(
+      `Orphaned session cleanup complete: ${cleanedCount} cleaned, ${errorCount} errors`
+    );
+  } catch (error) {
+    logger.error('Error in cleanupOrphanedSessions:', error);
   }
 }
 
@@ -891,6 +942,7 @@ export default {
   isAccountConnected,
   restoreActiveConnections,
   cleanupInactiveClients,
+  cleanupOrphanedSessions,
   resetDailyMessageCounters,
   sendMessage,
   getMessages,

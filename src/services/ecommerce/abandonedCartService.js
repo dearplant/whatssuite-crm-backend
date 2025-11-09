@@ -498,6 +498,159 @@ Need help? Just reply to this message!`;
       throw error;
     }
   }
+
+  /**
+   * Get recovery queue - carts ready for recovery
+   * @param {string} teamId - Team ID
+   * @returns {Promise<Array>} Carts in recovery queue
+   */
+  async getRecoveryQueue(teamId) {
+    try {
+      const carts = await prisma.abandoned_carts.findMany({
+        where: {
+          team_id: teamId,
+          status: 'Abandoned',
+          expires_at: {
+            gt: new Date(), // Not expired
+          },
+        },
+        orderBy: {
+          abandoned_at: 'asc', // Oldest first
+        },
+        take: 50, // Limit to 50 carts
+        include: {
+          integration: {
+            select: {
+              id: true,
+              provider: true,
+              store_name: true,
+            },
+          },
+          contacts: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+      });
+
+      return carts;
+    } catch (error) {
+      logger.error('Error fetching recovery queue', {
+        error: error.message,
+        teamId,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * List abandoned carts with filters
+   * @param {string} teamId - Team ID
+   * @param {Object} options - Filter options
+   * @returns {Promise<Object>} Paginated carts
+   */
+  async listCarts(teamId, options = {}) {
+    try {
+      const { page = 1, limit = 10, status, minValue, integrationId } = options;
+
+      const where = { team_id: teamId };
+      if (status) where.status = status;
+      if (minValue) where.total_amount = { gte: parseFloat(minValue) };
+      if (integrationId) where.integration_id = integrationId;
+
+      const [carts, total] = await Promise.all([
+        prisma.abandoned_carts.findMany({
+          where,
+          skip: (page - 1) * limit,
+          take: limit,
+          orderBy: { abandoned_at: 'desc' },
+          include: {
+            integration: {
+              select: {
+                id: true,
+                provider: true,
+                store_name: true,
+              },
+            },
+            contacts: {
+              select: {
+                id: true,
+                first_name: true,
+                last_name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        }),
+        prisma.abandoned_carts.count({ where }),
+      ]);
+
+      return {
+        carts,
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      logger.error('Error listing abandoned carts', {
+        error: error.message,
+        teamId,
+        options,
+      });
+      throw error;
+    }
+  }
+
+  /**
+   * Get single abandoned cart
+   * @param {string} cartId - Cart ID
+   * @param {string} teamId - Team ID
+   * @returns {Promise<Object|null>} Cart or null
+   */
+  async getCart(cartId, teamId) {
+    try {
+      const cart = await prisma.abandoned_carts.findFirst({
+        where: {
+          id: cartId,
+          team_id: teamId,
+        },
+        include: {
+          integration: {
+            select: {
+              id: true,
+              provider: true,
+              store_name: true,
+            },
+          },
+          contacts: {
+            select: {
+              id: true,
+              first_name: true,
+              last_name: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+      });
+
+      return cart;
+    } catch (error) {
+      logger.error('Error getting abandoned cart', {
+        error: error.message,
+        cartId,
+        teamId,
+      });
+      throw error;
+    }
+  }
 }
 
 export default new AbandonedCartService();

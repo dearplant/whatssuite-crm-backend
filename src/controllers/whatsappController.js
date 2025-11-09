@@ -1,6 +1,6 @@
 import whatsappService from '../services/whatsappService.js';
-import prisma from '../config/database.js';
 import logger from '../utils/logger.js';
+import { isApiError, handleError } from '../utils/errors.js';
 
 /**
  * Connect WhatsApp account
@@ -9,14 +9,22 @@ import logger from '../utils/logger.js';
 export async function connectAccount(req, res) {
   try {
     const userId = req.user.id;
+    const teamId = req.user.teamId;
     const { phoneNumber, displayName } = req.body;
 
-    const result = await whatsappService.connectWhatsAppAccount(userId, {
+    if (!teamId) {
+      return res.status(400).json({
+        error: 'BadRequest',
+        message: 'User must belong to a team to connect WhatsApp account',
+      });
+    }
+
+    const result = await whatsappService.connectWhatsAppAccount(userId, teamId, {
       phoneNumber,
       displayName,
     });
 
-    logger.info(`WhatsApp connection initiated for user ${userId}`);
+    logger.info(`WhatsApp connection initiated for user ${userId}, team ${teamId}`);
 
     return res.status(202).json({
       success: true,
@@ -24,10 +32,12 @@ export async function connectAccount(req, res) {
     });
   } catch (error) {
     logger.error('Error in connectAccount controller:', error);
+    if (isApiError(error)) {
+      return handleError(error, res);
+    }
     return res.status(500).json({
       error: 'InternalServerError',
       message: 'Failed to connect WhatsApp account',
-      details: error.message,
     });
   }
 }
@@ -35,26 +45,12 @@ export async function connectAccount(req, res) {
 /**
  * Disconnect WhatsApp account
  * POST /api/v1/whatsapp/disconnect/:accountId
+ * Note: Account ownership is verified by middleware
  */
 export async function disconnectAccount(req, res) {
   try {
     const { accountId } = req.params;
     const userId = req.user.id;
-
-    // Verify account belongs to user
-    const account = await prisma.whatsapp_accounts.findFirst({
-      where: {
-        id: accountId,
-        user_id: userId,
-      },
-    });
-
-    if (!account) {
-      return res.status(404).json({
-        error: 'NotFound',
-        message: 'WhatsApp account not found',
-      });
-    }
 
     const result = await whatsappService.disconnectWhatsAppAccount(accountId);
 
@@ -66,10 +62,12 @@ export async function disconnectAccount(req, res) {
     });
   } catch (error) {
     logger.error('Error in disconnectAccount controller:', error);
+    if (isApiError(error)) {
+      return handleError(error, res);
+    }
     return res.status(500).json({
       error: 'InternalServerError',
       message: 'Failed to disconnect WhatsApp account',
-      details: error.message,
     });
   }
 }
@@ -77,26 +75,11 @@ export async function disconnectAccount(req, res) {
 /**
  * Get QR code for account
  * GET /api/v1/whatsapp/qr-code/:accountId
+ * Note: Account ownership is verified by middleware
  */
 export async function getQRCode(req, res) {
   try {
     const { accountId } = req.params;
-    const userId = req.user.id;
-
-    // Verify account belongs to user
-    const account = await prisma.whatsapp_accounts.findFirst({
-      where: {
-        id: accountId,
-        user_id: userId,
-      },
-    });
-
-    if (!account) {
-      return res.status(404).json({
-        error: 'NotFound',
-        message: 'WhatsApp account not found',
-      });
-    }
 
     const result = await whatsappService.getQRCode(accountId);
 
@@ -106,9 +89,12 @@ export async function getQRCode(req, res) {
     });
   } catch (error) {
     logger.error('Error in getQRCode controller:', error);
-    return res.status(error.message.includes('not found') ? 404 : 400).json({
-      error: error.message.includes('not found') ? 'NotFound' : 'BadRequest',
-      message: error.message,
+    if (isApiError(error)) {
+      return handleError(error, res);
+    }
+    return res.status(500).json({
+      error: 'InternalServerError',
+      message: 'Failed to get QR code',
     });
   }
 }
@@ -141,26 +127,11 @@ export async function getAccounts(req, res) {
 /**
  * Get account health status
  * GET /api/v1/whatsapp/health/:accountId
+ * Note: Account ownership is verified by middleware
  */
 export async function getAccountHealth(req, res) {
   try {
     const { accountId } = req.params;
-    const userId = req.user.id;
-
-    // Verify account belongs to user
-    const account = await prisma.whatsapp_accounts.findFirst({
-      where: {
-        id: accountId,
-        user_id: userId,
-      },
-    });
-
-    if (!account) {
-      return res.status(404).json({
-        error: 'NotFound',
-        message: 'WhatsApp account not found',
-      });
-    }
 
     const health = await whatsappService.getAccountHealth(accountId);
 
@@ -232,26 +203,12 @@ export async function getAccountDetails(req, res) {
 /**
  * Send WhatsApp message
  * POST /api/v1/whatsapp/send-message
+ * Note: Account ownership is verified by middleware
  */
 export async function sendMessage(req, res) {
   try {
     const userId = req.user.id;
     const { accountId, contactId, type, content, mediaUrl } = req.body;
-
-    // Verify account belongs to user
-    const account = await prisma.whatsapp_accounts.findFirst({
-      where: {
-        id: accountId,
-        user_id: userId,
-      },
-    });
-
-    if (!account) {
-      return res.status(404).json({
-        error: 'NotFound',
-        message: 'WhatsApp account not found',
-      });
-    }
 
     const message = await whatsappService.sendMessage(accountId, userId, {
       contactId,

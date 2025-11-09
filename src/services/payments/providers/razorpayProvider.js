@@ -9,6 +9,8 @@ import logger from '../../../utils/logger.js';
 class RazorpayProvider extends BasePaymentProvider {
   constructor(credentials) {
     super(credentials);
+    this.keyId = credentials.key_id;
+    this.keySecret = credentials.key_secret;
     this.razorpay = new Razorpay({
       key_id: credentials.key_id,
       key_secret: credentials.key_secret,
@@ -157,41 +159,49 @@ class RazorpayProvider extends BasePaymentProvider {
     };
   }
 
-  async testCredentials() {
-    try {
-      await this.razorpay.customers.all({ count: 1 });
-      return true;
-    } catch (error) {
-      logger.error('Razorpay credentials test failed:', error);
-      return false;
-    }
-  }
-
   mapRazorpayStatus(razorpayStatus) {
     const statusMap = {
       created: 'Active',
       authenticated: 'Active',
       active: 'Active',
-      pending: 'PastDue',
-      halted: 'PastDue',
       cancelled: 'Cancelled',
-      completed: 'Expired',
-      expired: 'Expired',
+      halted: 'Cancelled',
+      paused: 'PastDue',
     };
-
     return statusMap[razorpayStatus] || 'Active';
   }
 
-  mapPaymentStatus(razorpayStatus) {
-    const statusMap = {
-      created: 'Pending',
-      authorized: 'Pending',
-      captured: 'Completed',
-      refunded: 'Refunded',
-      failed: 'Failed',
-    };
+  /**
+   * Test credentials by making a real API call
+   * @returns {Promise<boolean>} True if credentials are valid
+   */
+  async testCredentials() {
+    try {
+      // Make a real API call to validate credentials
+      const auth = Buffer.from(`${this.keyId}:${this.keySecret}`).toString('base64');
+      
+      const response = await fetch('https://api.razorpay.com/v1/payments?count=1', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Basic ${auth}`,
+        },
+      });
 
-    return statusMap[razorpayStatus] || 'Pending';
+      if (response.ok) {
+        logger.info('Razorpay credentials validated successfully');
+        return true;
+      }
+      
+      logger.error('Razorpay credential validation failed:', {
+        status: response.status,
+      });
+      return false;
+    } catch (error) {
+      logger.error('Razorpay credential validation error:', {
+        error: error.message,
+      });
+      return false;
+    }
   }
 }
 

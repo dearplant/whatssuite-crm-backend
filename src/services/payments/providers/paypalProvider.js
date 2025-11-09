@@ -22,6 +22,12 @@ class PayPalProvider extends BasePaymentProvider {
   async getAccessToken() {
     const auth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
 
+    logger.info('PayPal getAccessToken attempt', {
+      baseUrl: this.baseUrl,
+      clientId: this.clientId,
+      mode: this.mode,
+    });
+
     // eslint-disable-next-line no-undef
     const response = await fetch(`${this.baseUrl}/v1/oauth2/token`, {
       method: 'POST',
@@ -33,6 +39,17 @@ class PayPalProvider extends BasePaymentProvider {
     });
 
     const data = await response.json();
+    
+    logger.info('PayPal getAccessToken response', {
+      status: response.status,
+      hasAccessToken: !!data.access_token,
+      error: data.error,
+    });
+
+    if (!response.ok || !data.access_token) {
+      throw new Error(data.error_description || 'Failed to get access token');
+    }
+
     return data.access_token;
   }
 
@@ -235,21 +252,30 @@ class PayPalProvider extends BasePaymentProvider {
       ACTIVE: 'Active',
       CANCELLED: 'Cancelled',
       SUSPENDED: 'PastDue',
-      EXPIRED: 'Expired',
+      EXPIRED: 'Cancelled',
     };
-
     return statusMap[paypalStatus] || 'Active';
   }
 
-  mapPaymentStatus(paypalStatus) {
-    const statusMap = {
-      CREATED: 'Pending',
-      APPROVED: 'Pending',
-      COMPLETED: 'Completed',
-      VOIDED: 'Failed',
-    };
-
-    return statusMap[paypalStatus] || 'Pending';
+  /**
+   * Test credentials by making a real API call
+   * @returns {Promise<boolean>} True if credentials are valid
+   */
+  async testCredentials() {
+    try {
+      // Make a real API call to get access token - this validates credentials
+      const accessToken = await this.getAccessToken();
+      if (accessToken) {
+        logger.info('PayPal credentials validated successfully');
+        return true;
+      }
+      return false;
+    } catch (error) {
+      logger.error('PayPal credential validation failed:', {
+        error: error.message,
+      });
+      return false;
+    }
   }
 }
 

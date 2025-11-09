@@ -1,7 +1,7 @@
 import StripeProvider from './providers/stripeProvider.js';
 import PayPalProvider from './providers/paypalProvider.js';
 import RazorpayProvider from './providers/razorpayProvider.js';
-import { decrypt } from '../../utils/encryption.js';
+import { decryptCredentials } from '../../utils/encryption.js';
 import logger from '../../utils/logger.js';
 
 /**
@@ -18,20 +18,36 @@ class PaymentGatewayManager {
   }
 
   /**
+   * Normalize provider name to match registered providers
+   * @param {string} providerName - Provider name in any case
+   * @returns {string} Normalized provider name
+   */
+  normalizeProviderName(providerName) {
+    const lowerName = providerName.toLowerCase();
+    const nameMap = {
+      stripe: 'Stripe',
+      paypal: 'PayPal',
+      razorpay: 'Razorpay',
+    };
+    return nameMap[lowerName] || providerName;
+  }
+
+  /**
    * Get provider instance
    * @param {string} providerName - Provider name (Stripe, PayPal, Razorpay)
    * @param {string} encryptedCredentials - Encrypted credentials
    * @returns {BasePaymentProvider} Provider instance
    */
   getProvider(providerName, encryptedCredentials) {
-    const ProviderClass = this.providers[providerName];
+    const normalizedName = this.normalizeProviderName(providerName);
+    const ProviderClass = this.providers[normalizedName];
 
     if (!ProviderClass) {
       throw new Error(`Unsupported payment provider: ${providerName}`);
     }
 
     try {
-      const credentials = JSON.parse(decrypt(encryptedCredentials));
+      const credentials = decryptCredentials(encryptedCredentials);
       return new ProviderClass(credentials);
     } catch (error) {
       logger.error('Error initializing payment provider:', error);
@@ -55,7 +71,8 @@ class PaymentGatewayManager {
    */
   async validateCredentials(providerName, credentials) {
     try {
-      const ProviderClass = this.providers[providerName];
+      const normalizedName = this.normalizeProviderName(providerName);
+      const ProviderClass = this.providers[normalizedName];
 
       if (!ProviderClass) {
         throw new Error(`Unsupported payment provider: ${providerName}`);

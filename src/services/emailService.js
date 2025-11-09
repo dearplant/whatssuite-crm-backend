@@ -385,6 +385,33 @@ class EmailService {
   }
 
   /**
+   * Send team invitation email
+   * @param {string} email - Invitee email
+   * @param {string} teamName - Team name
+   * @param {string} inviterName - Inviter name
+   * @param {string} token - Invitation token
+   * @param {string} role - Role being assigned
+   */
+  async sendTeamInvitation(email, teamName, inviterName, token, role) {
+    const invitationUrl = `${config.app.url}/team/accept-invitation?token=${token}`;
+
+    return this.sendEmail({
+      to: email,
+      subject: `You've been invited to join ${teamName}`,
+      template: 'team-invitation',
+      templateData: {
+        teamName,
+        inviterName,
+        role,
+        invitationUrl,
+        appName: config.app.name,
+        expiryDays: 7,
+      },
+      priority: 'normal',
+    });
+  }
+
+  /**
    * Verify email service connection
    * @returns {boolean} Connection status
    */

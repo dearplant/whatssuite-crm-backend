@@ -98,3 +98,61 @@ export function validateParams(schema) {
     next();
   };
 }
+
+/**
+ * Generic validate function that can validate body, query, or params
+ */
+export function validate(schema, target = 'body') {
+  return (req, res, next) => {
+    let dataToValidate;
+    
+    switch (target) {
+      case 'query':
+        dataToValidate = req.query;
+        break;
+      case 'params':
+        dataToValidate = req.params;
+        break;
+      case 'body':
+      default:
+        dataToValidate = req.body;
+        break;
+    }
+
+    const { error, value } = schema.validate(dataToValidate, {
+      abortEarly: false,
+      stripUnknown: true,
+    });
+
+    if (error) {
+      const errors = error.details.map((detail) => ({
+        field: detail.path.join('.'),
+        message: detail.message,
+      }));
+
+      logger.warn(`Validation error (${target}):`, { errors, data: dataToValidate });
+
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors,
+      });
+    }
+
+    // Replace the validated data
+    switch (target) {
+      case 'query':
+        req.validatedQuery = value;
+        break;
+      case 'params':
+        req.params = value;
+        break;
+      case 'body':
+      default:
+        req.body = value;
+        break;
+    }
+
+    next();
+  };
+}

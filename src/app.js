@@ -121,6 +121,7 @@ import cronRoutes from './routes/cronRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import ecommerceRoutes from './routes/ecommerceRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import teamRoutes from './routes/teamRoutes.js';
 
 // API root endpoint
 app.get('/api/v1', (req, res) => {
@@ -161,8 +162,8 @@ app.use('/api/v1/cron', cronRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/ecommerce', ecommerceRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/team', teamRoutes);
 // Additional routes will be added here as they are implemented:
-// app.use('/api/v1/team', teamRoutes);
 // app.use('/api/v1/webhooks', webhookRoutes);
 
 // ============================================

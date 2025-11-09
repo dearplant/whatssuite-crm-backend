@@ -8,6 +8,11 @@ import logger from '../utils/logger.js';
 import whatsappHealthCheckService from './whatsappHealthCheckService.js';
 import whatsappService from './whatsappService.js';
 import flowAnalyticsService from './flowAnalyticsService.js';
+import analyticsService from './analyticsService.js';
+import reportService from './reportService.js';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 class CronScheduler {
   constructor() {
@@ -36,8 +41,26 @@ class CronScheduler {
       // Cleanup inactive clients - every hour
       this.scheduleInactiveClientCleanup();
 
+      // Cleanup orphaned session files - every day at 3 AM
+      this.scheduleOrphanedSessionCleanup();
+
       // Flow analytics aggregation - every hour
       this.scheduleFlowAnalyticsAggregation();
+
+      // Daily analytics snapshot generation - every day at 2 AM
+      this.scheduleDailySnapshotGeneration();
+
+      // Weekly analytics snapshot generation - every Monday at 3 AM
+      this.scheduleWeeklySnapshotGeneration();
+
+      // Monthly analytics snapshot generation - first day of month at 4 AM
+      this.scheduleMonthlySnapshotGeneration();
+
+      // Scheduled report processing - every hour
+      this.scheduleReportProcessing();
+
+      // Expired report cleanup - daily at 1 AM
+      this.scheduleExpiredReportCleanup();
 
       this.isInitialized = true;
       logger.info('Cron scheduler initialized successfully');
@@ -132,6 +155,34 @@ class CronScheduler {
   }
 
   /**
+   * Schedule orphaned session cleanup (every day at 3 AM)
+   */
+  scheduleOrphanedSessionCleanup() {
+    const jobName = 'orphaned-session-cleanup';
+
+    // Run every day at 3 AM: 0 3 * * *
+    const job = cron.schedule(
+      '0 3 * * *',
+      async () => {
+        try {
+          logger.info('Running scheduled orphaned session cleanup...');
+          await whatsappService.cleanupOrphanedSessions();
+          logger.info('Scheduled orphaned session cleanup completed');
+        } catch (error) {
+          logger.error('Error in scheduled orphaned session cleanup:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TZ || 'UTC',
+      }
+    );
+
+    this.jobs.set(jobName, job);
+    logger.info(`Scheduled job: ${jobName} (daily at 3 AM)`);
+  }
+
+  /**
    * Schedule flow analytics aggregation (every hour)
    */
   scheduleFlowAnalyticsAggregation() {
@@ -159,6 +210,265 @@ class CronScheduler {
 
     this.jobs.set(jobName, job);
     logger.info(`Scheduled job: ${jobName} (every hour at :05)`);
+  }
+
+  /**
+   * Schedule daily analytics snapshot generation (every day at 2 AM)
+   */
+  scheduleDailySnapshotGeneration() {
+    const jobName = 'daily-analytics-snapshot';
+
+    // Run every day at 2 AM: 0 2 * * *
+    const job = cron.schedule(
+      '0 2 * * *',
+      async () => {
+        try {
+          logger.info('Running scheduled daily analytics snapshot generation...');
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          yesterday.setHours(0, 0, 0, 0);
+
+          // Get all teams
+          const teams = await prisma.teams.findMany({
+            select: { id: true }
+          });
+
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (const team of teams) {
+            try {
+              // Generate team-wide snapshot
+              await analyticsService.generateSnapshot(team.id, null, yesterday, 'Daily');
+              
+              // Generate per-account snapshots
+              const accounts = await prisma.whatsapp_accounts.findMany({
+                where: { team_id: team.id, is_active: true },
+                select: { id: true }
+              });
+
+              for (const account of accounts) {
+                await analyticsService.generateSnapshot(team.id, account.id, yesterday, 'Daily');
+              }
+
+              successCount++;
+            } catch (error) {
+              logger.error(`Error generating daily snapshot for team ${team.id}:`, error);
+              errorCount++;
+            }
+          }
+
+          logger.info('Scheduled daily analytics snapshot generation completed', {
+            teamsProcessed: teams.length,
+            successCount,
+            errorCount
+          });
+        } catch (error) {
+          logger.error('Error in scheduled daily analytics snapshot generation:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TZ || 'UTC',
+      }
+    );
+
+    this.jobs.set(jobName, job);
+    logger.info(`Scheduled job: ${jobName} (daily at 2 AM)`);
+  }
+
+  /**
+   * Schedule weekly analytics snapshot generation (every Monday at 3 AM)
+   */
+  scheduleWeeklySnapshotGeneration() {
+    const jobName = 'weekly-analytics-snapshot';
+
+    // Run every Monday at 3 AM: 0 3 * * 1
+    const job = cron.schedule(
+      '0 3 * * 1',
+      async () => {
+        try {
+          logger.info('Running scheduled weekly analytics snapshot generation...');
+          
+          // Get the start of last week (Monday)
+          const lastMonday = new Date();
+          lastMonday.setDate(lastMonday.getDate() - 7);
+          const dayOfWeek = lastMonday.getDay();
+          const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+          lastMonday.setDate(lastMonday.getDate() + diff);
+          lastMonday.setHours(0, 0, 0, 0);
+
+          // Get all teams
+          const teams = await prisma.teams.findMany({
+            select: { id: true }
+          });
+
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (const team of teams) {
+            try {
+              // Generate team-wide snapshot
+              await analyticsService.generateSnapshot(team.id, null, lastMonday, 'Weekly');
+              
+              // Generate per-account snapshots
+              const accounts = await prisma.whatsapp_accounts.findMany({
+                where: { team_id: team.id, is_active: true },
+                select: { id: true }
+              });
+
+              for (const account of accounts) {
+                await analyticsService.generateSnapshot(team.id, account.id, lastMonday, 'Weekly');
+              }
+
+              successCount++;
+            } catch (error) {
+              logger.error(`Error generating weekly snapshot for team ${team.id}:`, error);
+              errorCount++;
+            }
+          }
+
+          logger.info('Scheduled weekly analytics snapshot generation completed', {
+            teamsProcessed: teams.length,
+            successCount,
+            errorCount
+          });
+        } catch (error) {
+          logger.error('Error in scheduled weekly analytics snapshot generation:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TZ || 'UTC',
+      }
+    );
+
+    this.jobs.set(jobName, job);
+    logger.info(`Scheduled job: ${jobName} (every Monday at 3 AM)`);
+  }
+
+  /**
+   * Schedule monthly analytics snapshot generation (first day of month at 4 AM)
+   */
+  scheduleMonthlySnapshotGeneration() {
+    const jobName = 'monthly-analytics-snapshot';
+
+    // Run on first day of month at 4 AM: 0 4 1 * *
+    const job = cron.schedule(
+      '0 4 1 * *',
+      async () => {
+        try {
+          logger.info('Running scheduled monthly analytics snapshot generation...');
+          
+          // Get the first day of last month
+          const lastMonth = new Date();
+          lastMonth.setMonth(lastMonth.getMonth() - 1);
+          lastMonth.setDate(1);
+          lastMonth.setHours(0, 0, 0, 0);
+
+          // Get all teams
+          const teams = await prisma.teams.findMany({
+            select: { id: true }
+          });
+
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (const team of teams) {
+            try {
+              // Generate team-wide snapshot
+              await analyticsService.generateSnapshot(team.id, null, lastMonth, 'Monthly');
+              
+              // Generate per-account snapshots
+              const accounts = await prisma.whatsapp_accounts.findMany({
+                where: { team_id: team.id, is_active: true },
+                select: { id: true }
+              });
+
+              for (const account of accounts) {
+                await analyticsService.generateSnapshot(team.id, account.id, lastMonth, 'Monthly');
+              }
+
+              successCount++;
+            } catch (error) {
+              logger.error(`Error generating monthly snapshot for team ${team.id}:`, error);
+              errorCount++;
+            }
+          }
+
+          logger.info('Scheduled monthly analytics snapshot generation completed', {
+            teamsProcessed: teams.length,
+            successCount,
+            errorCount
+          });
+        } catch (error) {
+          logger.error('Error in scheduled monthly analytics snapshot generation:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TZ || 'UTC',
+      }
+    );
+
+    this.jobs.set(jobName, job);
+    logger.info(`Scheduled job: ${jobName} (first day of month at 4 AM)`);
+  }
+
+  /**
+   * Schedule report processing (every hour)
+   */
+  scheduleReportProcessing() {
+    const jobName = 'scheduled-report-processing';
+
+    // Run every hour at 10 minutes past: 10 * * * *
+    const job = cron.schedule(
+      '10 * * * *',
+      async () => {
+        try {
+          logger.info('Running scheduled report processing...');
+          await reportService.processScheduledReports();
+          logger.info('Scheduled report processing completed');
+        } catch (error) {
+          logger.error('Error in scheduled report processing:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TZ || 'UTC',
+      }
+    );
+
+    this.jobs.set(jobName, job);
+    logger.info(`Scheduled job: ${jobName} (every hour at :10)`);
+  }
+
+  /**
+   * Schedule expired report cleanup (daily at 1 AM)
+   */
+  scheduleExpiredReportCleanup() {
+    const jobName = 'expired-report-cleanup';
+
+    // Run every day at 1 AM: 0 1 * * *
+    const job = cron.schedule(
+      '0 1 * * *',
+      async () => {
+        try {
+          logger.info('Running scheduled expired report cleanup...');
+          await reportService.cleanupExpiredReports();
+          logger.info('Scheduled expired report cleanup completed');
+        } catch (error) {
+          logger.error('Error in scheduled expired report cleanup:', error);
+        }
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TZ || 'UTC',
+      }
+    );
+
+    this.jobs.set(jobName, job);
+    logger.info(`Scheduled job: ${jobName} (daily at 1 AM)`);
   }
 
   /**
@@ -230,6 +540,47 @@ class CronScheduler {
           return await whatsappService.cleanupInactiveClients();
         case 'flow-analytics-aggregation':
           return await flowAnalyticsService.aggregateFlowMetrics();
+        case 'daily-analytics-snapshot':
+          // Generate for yesterday
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          yesterday.setHours(0, 0, 0, 0);
+          const teams = await prisma.teams.findMany({ select: { id: true } });
+          const results = [];
+          for (const team of teams) {
+            results.push(await analyticsService.generateSnapshot(team.id, null, yesterday, 'Daily'));
+          }
+          return results;
+        case 'weekly-analytics-snapshot':
+          // Generate for last week
+          const lastMonday = new Date();
+          lastMonday.setDate(lastMonday.getDate() - 7);
+          const dayOfWeek = lastMonday.getDay();
+          const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+          lastMonday.setDate(lastMonday.getDate() + diff);
+          lastMonday.setHours(0, 0, 0, 0);
+          const teamsWeekly = await prisma.teams.findMany({ select: { id: true } });
+          const resultsWeekly = [];
+          for (const team of teamsWeekly) {
+            resultsWeekly.push(await analyticsService.generateSnapshot(team.id, null, lastMonday, 'Weekly'));
+          }
+          return resultsWeekly;
+        case 'monthly-analytics-snapshot':
+          // Generate for last month
+          const lastMonth = new Date();
+          lastMonth.setMonth(lastMonth.getMonth() - 1);
+          lastMonth.setDate(1);
+          lastMonth.setHours(0, 0, 0, 0);
+          const teamsMonthly = await prisma.teams.findMany({ select: { id: true } });
+          const resultsMonthly = [];
+          for (const team of teamsMonthly) {
+            resultsMonthly.push(await analyticsService.generateSnapshot(team.id, null, lastMonth, 'Monthly'));
+          }
+          return resultsMonthly;
+        case 'scheduled-report-processing':
+          return await reportService.processScheduledReports();
+        case 'expired-report-cleanup':
+          return await reportService.cleanupExpiredReports();
         default:
           throw new Error(`Unknown job: ${jobName}`);
       }

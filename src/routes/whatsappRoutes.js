@@ -2,6 +2,7 @@ import express from 'express';
 import whatsappController from '../controllers/whatsappController.js';
 import { authenticate } from '../middleware/auth.js';
 import { authorize } from '../middleware/rbac.js';
+import { verifyAccountOwnership, verifyAccountOwnershipFromBody } from '../middleware/accountOwnership.js';
 import {
   validateConnectAccount,
   validateAccountId,
@@ -35,6 +36,7 @@ router.post(
   '/disconnect/:accountId',
   authorize('whatsapp:disconnect'),
   validateAccountId,
+  verifyAccountOwnership(),
   whatsappController.disconnectAccount
 );
 
@@ -47,6 +49,7 @@ router.get(
   '/qr-code/:accountId',
   authorize('whatsapp:read'),
   validateAccountId,
+  verifyAccountOwnership(),
   whatsappController.getQRCode
 );
 
@@ -78,6 +81,7 @@ router.get(
   '/health/:accountId',
   authorize('whatsapp:read'),
   validateAccountId,
+  verifyAccountOwnership(),
   whatsappController.getAccountHealth
 );
 
@@ -90,6 +94,7 @@ router.post(
   '/send-message',
   authorize('messages:send'),
   validateSendMessage,
+  verifyAccountOwnershipFromBody('accountId'),
   whatsappController.sendMessage
 );
 

@@ -25,6 +25,7 @@ class StripeProvider extends BasePaymentProvider {
       });
 
       return {
+        id: customer.id,
         external_id: customer.id,
         email: customer.email,
         name: customer.name,
@@ -35,19 +36,51 @@ class StripeProvider extends BasePaymentProvider {
     }
   }
 
+  async createPrice(priceData) {
+    try {
+      // First create a product
+      const product = await this.stripe.products.create({
+        name: priceData.product_name,
+        metadata: priceData.metadata || {},
+      });
+
+      // Then create a price for that product
+      const price = await this.stripe.prices.create({
+        product: product.id,
+        unit_amount: priceData.unit_amount,
+        currency: priceData.currency,
+        recurring: {
+          interval: priceData.recurring_interval,
+        },
+      });
+
+      return {
+        id: price.id,
+        product_id: product.id,
+        unit_amount: price.unit_amount,
+        currency: price.currency,
+      };
+    } catch (error) {
+      logger.error('Stripe createPrice error:', error);
+      throw error;
+    }
+  }
+
   async createSubscription(subscriptionData) {
     try {
       const subscription = await this.stripe.subscriptions.create({
         customer: subscriptionData.customer_id,
-        items: [{ price: subscriptionData.price_id }],
+        items: [{ price: subscriptionData.price_id || subscriptionData.plan_id }],
+        currency: subscriptionData.currency,
         metadata: subscriptionData.metadata || {},
       });
 
       return {
+        id: subscription.id,
         external_id: subscription.id,
         status: this.mapStripeStatus(subscription.status),
-        current_period_start: new Date(subscription.current_period_start * 1000),
-        current_period_end: new Date(subscription.current_period_end * 1000),
+        current_period_start: subscription.current_period_start,
+        current_period_end: subscription.current_period_end,
       };
     } catch (error) {
       logger.error('Stripe createSubscription error:', error);
@@ -168,26 +201,29 @@ class StripeProvider extends BasePaymentProvider {
       active: 'Active',
       canceled: 'Cancelled',
       incomplete: 'PastDue',
-      incomplete_expired: 'Expired',
       past_due: 'PastDue',
-      trialing: 'Active',
       unpaid: 'PastDue',
     };
-
     return statusMap[stripeStatus] || 'Active';
   }
 
-  mapPaymentStatus(stripeStatus) {
-    const statusMap = {
-      requires_payment_method: 'Pending',
-      requires_confirmation: 'Pending',
-      requires_action: 'Pending',
-      processing: 'Pending',
-      succeeded: 'Completed',
-      canceled: 'Failed',
-    };
-
-    return statusMap[stripeStatus] || 'Pending';
+  /**
+   * Test credentials by making a real API call
+   * @returns {Promise<boolean>} True if credentials are valid
+   */
+  async testCredentials() {
+    try {
+      // Make a real API call to validate credentials
+      await this.stripe.balance.retrieve();
+      logger.info('Stripe credentials validated successfully');
+      return true;
+    } catch (error) {
+      logger.error('Stripe credential validation failed:', {
+        error: error.message,
+        type: error.type,
+      });
+      return false;
+    }
   }
 }
 
