@@ -6,6 +6,7 @@ import { initializeRedis, closeRedis } from './config/redis.js';
 import { closeAllQueues } from './queues/index.js';
 import { initializeSocketIO, closeSocketIO } from './config/socket.config.js';
 import whatsappService from './services/whatsappService.js';
+import messageHandler from './handlers/messageHandler.js';
 import './workers/messageWorker.js'; // Initialize message worker
 import './workers/contactImportWorker.js'; // Initialize contact import worker
 import './workers/flowWorker.js'; // Initialize flow worker
@@ -35,6 +36,10 @@ const startServer = async () => {
     // Initialize Socket.io
     initializeSocketIO(httpServer);
     logger.info('✅ Socket.io initialized successfully');
+
+    // Initialize message handler (breaks circular dependency)
+    messageHandler.initialize();
+    logger.info('✅ Message handler initialized successfully');
 
     // Initialize campaign worker
     initializeCampaignWorker();

@@ -13,6 +13,7 @@ import {
   emitWhatsAppReady,
   emitWhatsAppDisconnected,
 } from '../sockets/index.js';
+import whatsappEvents from '../events/whatsappEvents.js';
 
 // Store active WhatsApp clients
 const activeClients = new Map();
@@ -357,11 +358,9 @@ function setupClientEventHandlers(client) {
         hasMedia: msg.hasMedia,
       });
 
-      // Import messageService dynamically to avoid circular dependency
-      const { default: messageService } = await import('./messageService.js');
-
-      // Handle incoming message
-      await messageService.handleIncomingMessage({
+      // Emit event instead of directly calling messageService
+      // This breaks the circular dependency
+      whatsappEvents.emitIncomingMessage(accountId, {
         whatsappAccountId: accountId,
         from: msg.from.replace('@c.us', ''),
         type: msg.type === 'chat' ? 'Text' : msg.type.charAt(0).toUpperCase() + msg.type.slice(1),
@@ -389,9 +388,9 @@ function setupClientEventHandlers(client) {
       }
 
       if (status) {
-        // Import messageService dynamically to avoid circular dependency
-        const { default: messageService } = await import('./messageService.js');
-        await messageService.updateMessageStatus(msg.id._serialized, status);
+        // Emit event instead of directly calling messageService
+        // This breaks the circular dependency
+        whatsappEvents.emitMessageAck(accountId, msg.id._serialized, status);
       }
     } catch (error) {
       logger.error(`Error handling message ack for account ${accountId}:`, error);
