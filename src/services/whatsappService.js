@@ -779,16 +779,103 @@ async function resetDailyMessageCounters() {
 }
 
 /**
- * Send WhatsApp message (used by message worker)
+ * Queue message for sending (called by controller)
+ * This function validates and queues the message, returning immediately
  */
-async function sendMessage(messageData) {
+async function sendMessage(accountId, userId, messageData) {
+  const {
+    WhatsAppNotConnectedError,
+    WhatsAppMessageLimitError,
+    NotFoundError,
+  } = await import('../utils/errors.js');
+
+  try {
+    // Validate account exists and is active
+    const account = await prisma.whatsapp_accounts.findUnique({
+      where: { id: accountId },
+      select: {
+        id: true,
+        status: true,
+        is_active: true,
+        messages_sent_today: true,
+        daily_message_limit: true,
+      },
+    });
+
+    if (!account) {
+      throw new NotFoundError('WhatsApp account not found', 'WhatsAppAccount');
+    }
+
+    if (!account.is_active) {
+      throw new WhatsAppNotConnectedError('WhatsApp account is not active', accountId);
+    }
+
+    // Check if client is connected
+    const client = activeClients.get(accountId);
+    if (!client || !client.info) {
+      throw new WhatsAppNotConnectedError('WhatsApp account is not connected', accountId);
+    }
+
+    // Check daily message limit
+    if (account.messages_sent_today >= account.daily_message_limit) {
+      throw new WhatsAppMessageLimitError('Daily message limit reached', accountId);
+    }
+
+    // Get contact to get phone number
+    const contact = await prisma.contacts.findUnique({
+      where: { id: messageData.contactId },
+      select: { phone: true },
+    });
+
+    if (!contact) {
+      throw new NotFoundError('Contact not found', 'Contact');
+    }
+
+    // Queue the message for processing
+    const { default: messageQueue } = await import('../queues/index.js');
+    
+    const job = await messageQueue.addMessageJob({
+      whatsappAccountId: accountId,
+      userId,
+      contactId: messageData.contactId,
+      to: contact.phone,
+      type: messageData.type || 'Text',
+      content: messageData.content,
+      mediaUrl: messageData.mediaUrl,
+    });
+
+    logger.info(`Message queued for sending`, {
+      accountId,
+      userId,
+      contactId: messageData.contactId,
+      jobId: job.id,
+    });
+
+    return {
+      jobId: job.id,
+      status: 'queued',
+      message: 'Message queued for sending',
+    };
+  } catch (error) {
+    logger.error('Error queueing message:', error);
+    throw error;
+  }
+}
+
+/**
+ * Process WhatsApp message (called by message worker)
+ * This is the actual function that sends the message via WhatsApp Web
+ */
+async function processWhatsAppMessage(messageData) {
+  const { WhatsAppNotConnectedError } = await import('../utils/errors.js');
+
   try {
     const { whatsappAccountId, to, type, content, mediaUrl } = messageData;
 
     // Get active client
     const client = activeClients.get(whatsappAccountId);
     if (!client || !client.info) {
-      throw new Error('WhatsApp client is not active');
+      throw new WhatsAppNotConnectedError('WhatsApp client is not active', whatsappAccountId);
     }
 
     // Format phone number for WhatsApp
@@ -828,7 +915,7 @@ async function sendMessage(messageData) {
       timestamp: sentMessage.timestamp,
     };
   } catch (error) {
-    logger.error('Error in sendMessage:', error);
+    logger.error('Error in processWhatsAppMessage:', error);
     throw error;
   }
 }
@@ -945,6 +1032,7 @@ export default {
   cleanupOrphanedSessions,
   resetDailyMessageCounters,
   sendMessage,
+  processWhatsAppMessage,
   getMessages,
   encryptSessionData,
   decryptSessionData,

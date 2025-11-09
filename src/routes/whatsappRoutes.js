@@ -69,6 +69,7 @@ router.get(
   '/accounts/:accountId',
   authorize('whatsapp:read'),
   validateAccountId,
+  verifyAccountOwnership(),
   whatsappController.getAccountDetails
 );
 

@@ -152,33 +152,14 @@ export async function getAccountHealth(req, res) {
 /**
  * Get account details
  * GET /api/v1/whatsapp/accounts/:accountId
+ * Note: Account ownership is verified by middleware
  */
 export async function getAccountDetails(req, res) {
   try {
     const { accountId } = req.params;
-    const userId = req.user.id;
-
-    const account = await prisma.whatsapp_accounts.findFirst({
-      where: {
-        id: accountId,
-        user_id: userId,
-      },
-      include: {
-        _count: {
-          select: {
-            messages: true,
-            campaigns: true,
-          },
-        },
-      },
-    });
-
-    if (!account) {
-      return res.status(404).json({
-        error: 'NotFound',
-        message: 'WhatsApp account not found',
-      });
-    }
+    
+    // Account is already verified by middleware and attached to req.whatsappAccount
+    const account = req.whatsappAccount;
 
     // Check if client is active
     const isConnected = whatsappService.isAccountConnected(accountId);
@@ -192,10 +173,12 @@ export async function getAccountDetails(req, res) {
     });
   } catch (error) {
     logger.error('Error in getAccountDetails controller:', error);
+    if (isApiError(error)) {
+      return handleError(error, res);
+    }
     return res.status(500).json({
       error: 'InternalServerError',
       message: 'Failed to retrieve account details',
-      details: error.message,
     });
   }
 }
@@ -226,17 +209,15 @@ export async function sendMessage(req, res) {
     });
   } catch (error) {
     logger.error('Error in sendMessage controller:', error);
-
-    const statusCode = error.message.includes('not found')
-      ? 404
-      : error.message.includes('not connected') || error.message.includes('limit reached')
-        ? 400
-        : 500;
-
-    return res.status(statusCode).json({
-      error:
-        statusCode === 404 ? 'NotFound' : statusCode === 400 ? 'BadRequest' : 'InternalServerError',
-      message: error.message,
+    
+    // Use proper error handling
+    if (isApiError(error)) {
+      return handleError(error, res);
+    }
+    
+    return res.status(500).json({
+      error: 'InternalServerError',
+      message: 'Failed to send message',
     });
   }
 }
