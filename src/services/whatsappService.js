@@ -1,6 +1,5 @@
 import pkg from 'whatsapp-web.js';
 const { Client, LocalAuth } = pkg;
-import qrcode from 'qrcode-terminal';
 import crypto from 'crypto';
 import path from 'path';
 import fs from 'fs/promises';
@@ -168,10 +167,12 @@ function setupClientEventHandlers(client) {
     try {
       logger.info(`QR code generated for account ${accountId}`);
 
-      // Display QR in terminal for development
-      if (process.env.NODE_ENV === 'development') {
-        qrcode.generate(qr, { small: true });
-      }
+      // SECURITY: Never log raw QR code - it's a session credential
+      // QR code is securely stored in database and sent via WebSocket
+      logger.debug(`QR code generated for account ${accountId} (not displayed for security)`);
+
+      // For local development, QR can be accessed via API endpoint or WebSocket
+      // Never use qrcode-terminal.generate() as it exposes credentials in logs
 
       // Store QR code in database with 2-minute expiry
       const qrCodeExpiry = new Date(Date.now() + 2 * 60 * 1000);
@@ -575,7 +576,7 @@ async function getAccountHealth(accountId) {
     });
 
     if (!account) {
-      throw new Error('WhatsApp account not found');
+      throw new NotFoundError('WhatsApp account not found');
     }
 
     const client = activeClients.get(accountId);
