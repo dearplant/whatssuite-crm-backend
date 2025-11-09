@@ -7,14 +7,7 @@ import fs from 'fs/promises';
 import prisma from '../config/database.js';
 import WhatsAppAccountModel from '../models/whatsappAccount.js';
 import logger from '../utils/logger.js';
-import {
-  NotFoundError,
-  BadRequestError,
-  WhatsAppConnectionError,
-  WhatsAppNotConnectedError,
-  WhatsAppQRExpiredError,
-  WhatsAppMessageLimitError,
-} from '../utils/errors.js';
+import { NotFoundError, BadRequestError, WhatsAppConnectionError } from '../utils/errors.js';
 import {
   emitWhatsAppConnectionStatus,
   emitWhatsAppQRCode,
@@ -26,11 +19,32 @@ import {
 const activeClients = new Map();
 
 // Encryption configuration
-const ENCRYPTION_KEY = Buffer.from(
-  process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex'),
-  'hex'
-);
+// CRITICAL: ENCRYPTION_KEY must be set in environment variables
+// Without it, all WhatsApp sessions will be lost on server restart
+if (!process.env.ENCRYPTION_KEY) {
+  logger.error('CRITICAL: ENCRYPTION_KEY environment variable is not set!');
+  logger.error('All WhatsApp sessions will be lost on server restart.');
+  logger.error(
+    'Generate a key with: node -e "console.log(crypto.randomBytes(32).toString(\'hex\'))"'
+  );
+  throw new Error(
+    'ENCRYPTION_KEY environment variable is required for WhatsApp session persistence'
+  );
+}
+
+const ENCRYPTION_KEY = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
+
+// Validate encryption key length
+if (ENCRYPTION_KEY.length !== 32) {
+  logger.error(
+    `CRITICAL: ENCRYPTION_KEY must be exactly 32 bytes (64 hex characters). Current length: ${ENCRYPTION_KEY.length} bytes`
+  );
+  throw new Error('ENCRYPTION_KEY must be exactly 32 bytes (64 hex characters)');
+}
+
 const ALGORITHM = 'aes-256-gcm';
+
+logger.info('WhatsApp service initialized with secure encryption key');
 
 /**
  * Encrypt session data
@@ -499,7 +513,10 @@ async function disconnectWhatsAppAccount(accountId) {
   } catch (error) {
     logger.error(`Error disconnecting WhatsApp account ${accountId}:`, error);
     if (error instanceof NotFoundError) throw error;
-    throw new WhatsAppConnectionError('Failed to disconnect WhatsApp account: ' + error.message, accountId);
+    throw new WhatsAppConnectionError(
+      'Failed to disconnect WhatsApp account: ' + error.message,
+      accountId
+    );
   }
 }
 
@@ -709,7 +726,7 @@ async function cleanupOrphanedSessions() {
     // Check if sessions directory exists
     try {
       await fs.access(sessionsDir);
-    } catch (error) {
+    } catch {
       logger.info('Sessions directory does not exist, skipping cleanup');
       return;
     }
@@ -750,9 +767,7 @@ async function cleanupOrphanedSessions() {
       }
     }
 
-    logger.info(
-      `Orphaned session cleanup complete: ${cleanedCount} cleaned, ${errorCount} errors`
-    );
+    logger.info(`Orphaned session cleanup complete: ${cleanedCount} cleaned, ${errorCount} errors`);
   } catch (error) {
     logger.error('Error in cleanupOrphanedSessions:', error);
   }
@@ -783,11 +798,9 @@ async function resetDailyMessageCounters() {
  * This function validates and queues the message, returning immediately
  */
 async function sendMessage(accountId, userId, messageData) {
-  const {
-    WhatsAppNotConnectedError,
-    WhatsAppMessageLimitError,
-    NotFoundError,
-  } = await import('../utils/errors.js');
+  const { WhatsAppNotConnectedError, WhatsAppMessageLimitError, NotFoundError } = await import(
+    '../utils/errors.js'
+  );
 
   try {
     // Validate account exists and is active
@@ -833,7 +846,7 @@ async function sendMessage(accountId, userId, messageData) {
 
     // Queue the message for processing
     const { default: messageQueue } = await import('../queues/index.js');
-    
+
     const job = await messageQueue.addMessageJob({
       whatsappAccountId: accountId,
       userId,
